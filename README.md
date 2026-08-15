@@ -13,6 +13,10 @@ You will land raw data with a Fivetran connector, model it in dbt Studio with
 dbt Wizard doing the heavy lifting, define the same metrics two different ways,
 and then ask questions of your own data in plain English.
 
+**[Open the interactive guide](https://hicham-bab.github.io/snowflake-fivetran-dbt-hol/)**
+for a click-through version of this lab: pick your track and the whole run of
+show tailors itself, with checkboxes that remember where you got to.
+
 ---
 
 ## Start here: three steps, about a minute

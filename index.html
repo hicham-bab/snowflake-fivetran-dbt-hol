@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive lab guide: Fivetran → Snowflake → dbt → Snowflake Intelligence</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2431; --border:#2a3340;
+    --text:#e6edf3; --muted:#9aa7b4; --faint:#6b7684;
+    --fivetran:#0073e6; --fivetran-c:#2f80ff;
+    --snowflake:#29b5e8; --dbt:#ff694a; --sf-ai:#7c5cff;
+    --green:#3fb950; --amber:#e3b341; --red:#f85149;
+    --accent:#ff694a;
+    --radius:14px;
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--fivetran-c)}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px}
+
+  /* progress bar */
+  #progress{position:fixed; top:0; left:0; height:4px; width:0%;
+    background:linear-gradient(90deg,var(--snowflake),var(--dbt),var(--sf-ai)); z-index:100; transition:width .2s}
+
+  header.hero{padding:64px 0 40px; text-align:center; border-bottom:1px solid var(--border);
+    background:radial-gradient(1200px 400px at 50% -120px, rgba(124,92,255,.14), transparent)}
+  .kicker{display:inline-block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); border:1px solid var(--border); padding:5px 12px; border-radius:999px; margin-bottom:18px}
+  h1{font-size:clamp(28px,4.6vw,46px); line-height:1.12; margin:.1em 0 .35em; letter-spacing:-.02em}
+  h1 .grad{background:linear-gradient(90deg,var(--snowflake),var(--dbt) 60%,var(--sf-ai));
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .sub{color:var(--muted); font-size:18px; max-width:680px; margin:0 auto}
+  .meta-row{margin-top:22px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; font-size:13px; color:var(--faint)}
+  .meta-row span{background:var(--panel); border:1px solid var(--border); padding:5px 12px; border-radius:999px}
+
+  section{padding:52px 0}
+  h2{font-size:26px; letter-spacing:-.01em; margin:0 0 6px}
+  h2 .num{color:var(--faint); font-variant-numeric:tabular-nums; margin-right:10px}
+  .lead{color:var(--muted); margin:0 0 26px; max-width:760px}
+
+  /* architecture flow */
+  .flow{display:flex; align-items:stretch; gap:0; flex-wrap:wrap; justify-content:center}
+  .node{flex:1 1 170px; min-width:150px; background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px 16px; cursor:pointer; transition:.18s; position:relative}
+  .node:hover{transform:translateY(-3px); border-color:var(--nc,#3a4552)}
+  .node.active{border-color:var(--nc); box-shadow:0 0 0 1px var(--nc), 0 10px 30px rgba(0,0,0,.35)}
+  .node .dot{width:10px;height:10px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:8px}
+  .node h3{margin:0 0 4px; font-size:16px}
+  .node p{margin:0; font-size:12.5px; color:var(--muted)}
+  .arrow{display:flex; align-items:center; color:var(--faint); font-size:22px; padding:0 6px}
+  @media(max-width:760px){.arrow{transform:rotate(90deg); padding:6px 0; width:100%; justify-content:center}}
+  .node-detail{margin-top:18px; background:var(--panel2); border:1px solid var(--border);
+    border-left:4px solid var(--nc,#3a4552); border-radius:12px; padding:18px 20px; display:none}
+  .node-detail.show{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .node-detail h4{margin:0 0 6px}
+  .node-detail code{background:#0b0f14; padding:2px 6px; border-radius:5px; font-size:12.5px}
+
+  /* track picker */
+  .tracks{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  @media(max-width:760px){.tracks{grid-template-columns:1fr}}
+  .track{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; cursor:pointer; transition:.18s}
+  .track:hover{border-color:#3a4552; transform:translateY(-2px)}
+  .track.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+  .track .tag{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--faint)}
+  .track h3{margin:6px 0 8px; font-size:18px}
+  .track p{margin:0 0 12px; font-size:13.5px; color:var(--muted)}
+  .track .folder{font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--snowflake);
+    background:#0b0f14; padding:4px 8px; border-radius:6px; display:inline-block}
+  .track .diff{margin-top:10px; font-size:12px; color:var(--faint)}
+  .pill{display:inline-block; font-size:11px; padding:2px 9px; border-radius:999px; margin-top:8px}
+  .pill.easy{background:rgba(63,185,80,.15); color:var(--green)}
+  .pill.med{background:rgba(227,179,65,.15); color:var(--amber)}
+  .pill.hard{background:rgba(248,81,73,.15); color:var(--red)}
+
+  .trackbanner{margin-top:18px; padding:14px 18px; border-radius:12px; background:var(--panel2);
+    border:1px solid var(--border); font-size:14px}
+  .trackbanner b{color:var(--accent)}
+
+  /* steps */
+  .step{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:14px; overflow:hidden}
+  .step-head{display:flex; align-items:center; gap:14px; padding:16px 20px; cursor:pointer}
+  .step-head:hover{background:var(--panel2)}
+  .chk{width:22px;height:22px;border-radius:6px;border:2px solid var(--faint); flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center; font-size:13px; transition:.15s}
+  .step.done .chk{background:var(--green); border-color:var(--green); color:#06210c}
+  .step.done .step-title{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--faint)}
+  .clock{font-family:ui-monospace,Menlo,monospace; font-size:12.5px; color:var(--faint); min-width:42px}
+  .step-title{flex:1; font-weight:600; font-size:16px}
+  .min{font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid var(--border);
+    padding:3px 9px; border-radius:999px; white-space:nowrap}
+  .caret{color:var(--faint); transition:.2s}
+  .step.open .caret{transform:rotate(90deg)}
+  .step-body{display:none; padding:2px 20px 20px 56px}
+  .step.open .step-body{display:block}
+  .step-body p{margin:.5em 0}
+  .step-body ul{margin:.4em 0; padding-left:20px}
+  .step-body li{margin:.3em 0}
+  code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .step-body code{background:#0b0f14; padding:2px 6px; border-radius:5px; font-size:12.5px}
+  pre{background:#0b0f14; border:1px solid var(--border); border-radius:10px; padding:14px 16px;
+    overflow:auto; font-size:12.5px; margin:.6em 0}
+
+  .callout{border-radius:10px; padding:12px 16px; margin:12px 0; font-size:13.5px; border:1px solid}
+  .callout .lab{font-weight:700; display:block; margin-bottom:2px; font-size:12px; text-transform:uppercase; letter-spacing:.06em}
+  .cp{background:rgba(41,181,232,.10); border-color:rgba(41,181,232,.4)} .cp .lab{color:var(--snowflake)}
+  .fb{background:rgba(227,179,65,.09); border-color:rgba(227,179,65,.35)} .fb .lab{color:var(--amber)}
+  .key{background:rgba(124,92,255,.10); border-color:rgba(124,92,255,.4)} .key .lab{color:#a78bff}
+
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media(max-width:760px){.two-col{grid-template-columns:1fr}}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px}
+  .card h3{margin:0 0 4px; font-size:16px}
+  .card .status{font-size:11px; padding:3px 9px; border-radius:999px; display:inline-block; margin-bottom:10px}
+  .card table{width:100%; border-collapse:collapse; font-size:13px}
+  .card td{padding:6px 0; border-bottom:1px solid var(--border); vertical-align:top}
+  .card td:first-child{color:var(--muted); padding-right:12px; width:44%}
+
+  table.grid{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:8px}
+  table.grid th,table.grid td{padding:9px 12px; border:1px solid var(--border); text-align:left}
+  table.grid th{background:var(--panel2); font-weight:600}
+
+  footer{border-top:1px solid var(--border); padding:36px 0 60px; color:var(--faint); font-size:13px; text-align:center}
+  .btnrow{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0}
+  .btn{background:var(--panel); border:1px solid var(--border); color:var(--text); padding:9px 16px;
+    border-radius:9px; font-size:13px; cursor:pointer; text-decoration:none; display:inline-flex; gap:7px; align-items:center}
+  .btn:hover{border-color:#3a4552}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#1a0a05; font-weight:600}
+  #donecount{color:var(--green); font-weight:600}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">Two-hour hands-on lab · attendee walkthrough</span>
+    <h1>Fivetran → Snowflake → <span class="grad">dbt platform</span> → Snowflake Intelligence</h1>
+    <p class="sub">Build the full modern data stack loop on your own data, in your own accounts. Land it, model and govern it, then ask it questions in plain English.</p>
+    <div class="meta-row">
+      <span>120 min · hard stop</span>
+      <span>3 industry tracks</span>
+      <span>built with dbt Wizard</span>
+      <span id="donecount">0 / 10 steps done</span>
+    </div>
+    <div class="btnrow">
+      <a class="btn primary" href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol" target="_blank">Open the repo ↗</a>
+      <a class="btn" href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol/blob/main/dbt/setup.md" target="_blank">dbt platform setup ↗</a>
+      <a class="btn" href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol/blob/main/fivetran/connector-setup.md" target="_blank">Fivetran setup ↗</a>
+      <button class="btn" onclick="resetAll()">Reset progress</button>
+    </div>
+  </div>
+</header>
+
+<!-- ARCHITECTURE -->
+<section class="wrap" id="architecture">
+  <h2>The architecture</h2>
+  <p class="lead">One loop, end to end. Click any layer to see what it does and what you'll actually see happen.</p>
+  <div class="flow" id="flow">
+    <div class="node" data-k="fivetran" style="--nc:#2f80ff">
+      <h3><span class="dot"></span>Fivetran</h3><p>Ingest: land raw data</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="snowflake" style="--nc:#29b5e8">
+      <h3><span class="dot"></span>Snowflake</h3><p>Store: raw tables</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="dbt" style="--nc:#ff694a">
+      <h3><span class="dot"></span>dbt platform</h3><p>Transform &amp; govern</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="sem" style="--nc:#e3b341">
+      <h3><span class="dot"></span>Semantic layer</h3><p>Define meaning</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="catalog" style="--nc:#3fb950">
+      <h3><span class="dot"></span>dbt Catalog</h3><p>See what the agent sees</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node" data-k="ai" style="--nc:#7c5cff">
+      <h3><span class="dot"></span>Snowflake Intelligence</h3><p>Ask in English</p>
+    </div>
+  </div>
+  <div class="node-detail" id="ndetail"></div>
+</section>
+
+<!-- TRACK PICKER -->
+<section class="wrap" id="track">
+  <h2>1 · Pick your industry</h2>
+  <p class="lead">You only do one. Pick the one closest to your day job. All three take the same time; they differ in how hard the data works to trip you up. Your choice tailors the rest of this guide.</p>
+  <div class="tracks" id="tracks">
+    <div class="track" data-t="cpg">
+      <span class="tag">Cleanest run</span>
+      <h3>Consumer packaged goods</h3>
+      <p>Order and product performance: order value, customer lifetime value, stockout &amp; overstock risk, price optimisation.</p>
+      <span class="folder">projects/cpg</span>
+      <div class="diff">One source table · two marts · no surprises</div>
+      <span class="pill easy">Beginner friendly</span>
+    </div>
+    <div class="track" data-t="energy">
+      <span class="tag">Reshaping problem</span>
+      <h3>Energy</h3>
+      <p>Commodity price history across 23 traded commodities, plus equipment reliability and maintenance economics.</p>
+      <span class="folder">projects/energy</span>
+      <div class="diff">Wide-to-long unpivot · two feeds, secretly the same data</div>
+      <span class="pill med">Intermediate</span>
+    </div>
+    <div class="track" data-t="fs">
+      <span class="tag">Hardest one</span>
+      <h3>Financial services</h3>
+      <p>Credit risk across 1,000 customers and 20 lending institutions: risk scores, fraud probability, exposure, approvals.</p>
+      <span class="folder">projects/financial_services</span>
+      <div class="diff">Five-table star · real personal data to govern</div>
+      <span class="pill hard">Advanced</span>
+    </div>
+  </div>
+  <div class="trackbanner" id="trackbanner">
+    Pick a track above. Then, whichever you choose, set the <b>Project subdirectory</b> field in your dbt platform project to that folder path. This is the single most common setup mistake in the lab.
+  </div>
+</section>
+
+<!-- STEPS -->
+<section class="wrap" id="steps">
+  <h2>2 · The run of show</h2>
+  <p class="lead">Ten timeboxed sections, 120 minutes, hard stop. Check off each one as you go, your progress is saved in this browser. Every step has a fallback so you're never stuck.</p>
+  <div id="steplist"></div>
+</section>
+
+<!-- TWO PATHS -->
+<section class="wrap" id="paths">
+  <h2>3 · Consuming governed data: two paths</h2>
+  <p class="lead">The same metrics are defined twice, on purpose. Neither is the winner; they answer "where should the definition of revenue live, and who else needs to read it".</p>
+  <div class="two-col">
+    <div class="card">
+      <h3>Snowflake Semantic View</h3>
+      <span class="status" style="background:rgba(63,185,80,.15);color:var(--green)">Fully hands-on · works today</span>
+      <table>
+        <tr><td>Definition lives in</td><td>Snowflake, as an object</td></tr>
+        <tr><td>Consumed by</td><td>Cortex Analyst, Snowflake Intelligence</td></tr>
+        <tr><td>Non-Snowflake tools</td><td>No</td></tr>
+        <tr><td>Change control</td><td>Rebuild the dbt model</td></tr>
+        <tr><td>Reach for it when</td><td>Everything you own is in Snowflake; it's closer to the data and simpler</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>dbt Semantic Layer via the dbt MCP Server</h3>
+      <span class="status" style="background:rgba(227,179,65,.15);color:var(--amber)">Guided walkthrough · see note</span>
+      <table>
+        <tr><td>Definition lives in</td><td>Your dbt repo, in git</td></tr>
+        <tr><td>Consumed by</td><td>Any MCP client</td></tr>
+        <tr><td>Non-Snowflake tools</td><td>Yes</td></tr>
+        <tr><td>Change control</td><td>Pull request on the YAML</td></tr>
+        <tr><td>Reach for it when</td><td>A metric must mean the same thing in Snowflake, a BI tool, a notebook and a Slack bot</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="callout key" style="margin-top:16px">
+    <span class="lab">Why the dbt MCP path is a walkthrough (for now)</span>
+    Registering the dbt MCP Server <em>directly inside Snowflake Intelligence</em> doesn't work yet: Snowflake's external MCP connectors require a confidential OAuth client with a secret, while dbt's remote MCP issues public clients using PKCE, and needs an <code>x-dbt-prod-environment-id</code> header Snowflake can't send. The dbt MCP Server works today in any MCP client (Claude Desktop, Cursor, VS Code); it's the in-Snowflake registration that's pending. Re-verify before each delivery.
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Interactive attendee walkthrough · based on the <a href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol" target="_blank">snowflake-fivetran-dbt-hol</a> lab.</p>
+    <p>Fivetran (ingest) → Snowflake (store) → dbt platform (transform &amp; govern) → semantic layer (define meaning) → Snowflake Intelligence (ask in English).</p>
+  </div>
+</footer>
+
+<script>
+/* ---------- architecture node details ---------- */
+const details = {
+  fivetran:{c:"#2f80ff",h:"Fivetran: ingest",b:"A managed connector moves your source (PostgreSQL) into Snowflake. It takes about four minutes and then raw tables simply exist. Watch for the <code>_fivetran_synced</code> column, it isn't in the source; Fivetran added it, and it's how you answer \"when did this row last change\". The sync runs in the background while you move on to dbt."},
+  snowflake:{c:"#29b5e8",h:"Snowflake: store",b:"Raw landed tables live here in a dedicated schema. Nothing is transformed yet. This is also where your governed marts, Semantic View and the Cortex/Snowflake Intelligence experience all run later, the whole loop lands and finishes in one platform."},
+  dbt:{c:"#ff694a",h:"dbt platform: transform &amp; govern",b:"Point dbt at your landed data, then build staging and marts in <b>dbt Studio</b> with <b>dbt Wizard</b> as an agent (not autocomplete) and <b>Fusion</b> giving instant feedback. Four things in each track are deliberately broken, you fix them by talking to the agent and reviewing every change. The agent writes; you stay accountable."},
+  sem:{c:"#e3b341",h:"Semantic layer: define meaning",b:"The same metrics are defined twice: a <b>Snowflake Semantic View</b> (native, read by Cortex Analyst) and <b>dbt Semantic Layer</b> specs (in the repo, read through the dbt MCP Server). Two answers to \"where should the definition of revenue live\"."},
+  catalog:{c:"#3fb950",h:"dbt Catalog: the metadata the agent will use",b:"<b>dbt Catalog and the dbt MCP Server read the same metadata, through the same Discovery API.</b> Catalog renders it for a human; the MCP Server hands it to an agent. So this is a preview of the agent's context window: your column descriptions, data types, test results, lineage and <b>contracted status</b>. Needs a successful production job with <code>dbt build</code> plus <code>dbt docs generate</code>, or it's empty."},
+  ai:{c:"#7c5cff",h:"Snowflake Intelligence: ask in English",b:"Ask questions of governed metrics in plain English through Snowflake Intelligence and Cortex Analyst, and get one consistent answer. In financial services, ask for a customer's SSN and it can't answer, because the column was never selected. That's the governance beat."}
+};
+const nodes=document.querySelectorAll('.node'), nd=document.getElementById('ndetail');
+nodes.forEach(n=>n.addEventListener('click',()=>{
+  const k=n.dataset.k, was=n.classList.contains('active');
+  nodes.forEach(x=>x.classList.remove('active'));
+  if(was){nd.classList.remove('show');return;}
+  n.classList.add('active');
+  const d=details[k];
+  nd.style.setProperty('--nc',d.c);
+  nd.innerHTML='<h4 style="color:'+d.c+'">'+d.h+'</h4><p style="margin:0;color:var(--muted)">'+d.b+'</p>';
+  nd.classList.add('show');
+}));
+
+/* ---------- track-specific data ---------- */
+const trackData = {
+  cpg:{name:"Consumer packaged goods", schema:"hicham_bab_consumer_packaged_goods",
+    metrics:["total_recognised_revenue","average_order_value","cancellation_rate","average_stockout_rate","share_of_products_needing_review"],
+    q:'"What is total recognised revenue by product category?"',
+    beat:'The revenue metric means <code>total_recognised_revenue</code>, an agent that instead sums <code>order_total</code> overstates by a quarter. That gap is the point.'},
+  energy:{name:"Energy", schema:"hicham_bab_energy",
+    metrics:["average_commodity_price","unplanned_work_rate","cost_per_downtime_hour","maintenance_completion_rate"],
+    q:'"What is the unplanned work rate by maintenance type?"',
+    beat:'A governed agent uses the de-duplicated maintenance mart; one that finds <code>stg_loglynx</code> doubles your costs.'},
+  fs:{name:"Financial services", schema:"hicham_bab_financial_services",
+    metrics:["average_risk_score","total_risk_weighted_exposure","anomaly_rate","approval_rate","unassessed_collateral_rate"],
+    q:'"What is average risk score by institution type?"',
+    beat:'Ask the agent for a customer\'s social security number. It can\'t answer, the column was never selected. That\'s the governance story, and it lands better live than as a bullet.'}
+};
+let curTrack=null;
+
+/* ---------- steps definition ---------- */
+const steps = [
+  {clock:"0:00",min:8,title:"Welcome, fork the repo, pick your industry",body:`
+    <p>Three things: fork <code>github.com/hicham-bab/snowflake-fivetran-dbt-hol</code> (work in <em>your</em> fork), choose a track, and know the fallback exists.</p>
+    <div class="callout fb"><span class="lab">Fallback, said out loud now</span>If anything goes wrong with your own data, change one line in <code>dbt_project.yml</code> and you're back on the instructor's copy. Nobody will know and you won't miss anything.</div>`},
+
+  {clock:"0:08",min:15,title:"Fivetran connector: start the sync",body:`
+    <p>Build a PostgreSQL → Snowflake connector and start the sync. The point isn't that configuring a connector is hard; it's that it takes ~4 minutes and then raw tables exist in Snowflake.</p>
+    <ul><li>Note the <code>_fivetran_synced</code> column: not in the source, added by Fivetran, and it's how you answer "when did this row last change".</li>
+    <li>Move on to dbt <em>while the sync runs</em>, nobody watches a progress bar.</li></ul>
+    <p class="tw"></p>
+    <p><a href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol/blob/main/fivetran/connector-setup.md" target="_blank">Full Fivetran setup ↗</a></p>`},
+
+  {clock:"0:23",min:15,title:"dbt platform setup: sources, staging, first green build",body:`
+    <p>Work through <b>dbt/setup.md</b>: create the account, connect Snowflake, connect <em>your fork</em>, set the project subdirectory, and create <b>two</b> environments.</p>
+    <div class="callout key"><span class="lab">The setting people miss</span>Set <b>Project subdirectory</b> to <code class="tw-folder">projects/&lt;track&gt;</code>. Leave it blank and dbt looks in the repo root, finds no <code>dbt_project.yml</code>, and <em>every</em> command fails. The error never mentions the cause.</div>
+    <p>Then point the project at your data and build:</p>
+    <pre>vars:
+  source_schema: '<span class="tw-schema">your_track_schema</span>'</pre>
+    <div class="callout cp"><span class="lab">Checkpoint 1: the first hard gate</span>Staging must be green for everyone. If you're red here, it's your <code>source_schema</code> or your sync, change the one line back to the instructor schema and move on. Nothing in staging is booby-trapped.</div>
+    <div class="callout fb"><span class="lab">Create the production environment now</span>Two minutes here saves confusion at 1:29. dbt Catalog only shows metadata from a deployment environment marked production or staging.</div>
+    <p><a href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol/blob/main/dbt/setup.md" target="_blank">Full dbt platform setup ↗</a></p>`},
+
+  {clock:"0:38",min:8,title:"dbt Studio & Fusion tour",body:`
+    <p>Instructor drives, you follow in your own editor on the <code>vw_*_data_quality</code> view. Three beats:</p>
+    <ul><li>Hover a column and see the type <b>Fusion</b> inferred, without running anything.</li>
+    <li>Break a <code>ref()</code> and watch the error appear <em>before</em> you run.</li>
+    <li>Preview a single CTE in the middle of a model.</li></ul>`},
+
+  {clock:"0:46",min:25,title:"dbt Wizard: fix four broken things, then build one from intent",body:`
+    <p><b>The centre of the lab.</b> Run <code>dbt build</code>. It fails, four things in your track are deliberately broken.</p>
+    <ul><li>Prompt <b>dbt Wizard</b> to diagnose and fix each one. Review and accept every change rather than letting it apply blind.</li>
+    <li>Then build one model from intent, so it's not purely a repair exercise.</li></ul>
+    <div class="callout key"><span class="lab">The teaching point</span>dbt Wizard is an agent, not autocomplete. The agent writes; you stay accountable. Some of the bugs have a <em>wrong</em> fix that compiles perfectly, in financial services, one of them quietly puts personal data back into a table an AI can read. That's why you read the diff.</div>`},
+
+  {clock:"1:11",min:10,title:"Semantic layer: defined two ways",body:`
+    <p>The crux. Compare the <b>Snowflake Semantic View</b> (<code>sv_*.sql</code>) with the <b>dbt Semantic Layer</b> specs in <code>models/marts/_&lt;track&gt;__marts.yml</code>.</p>
+    <p>The question to leave with isn't "which is better", it's "where should the definition of revenue live, and who else needs to read it".</p>
+    <div class="callout fb"><span class="lab">Find the honest difference</span>The Snowflake Semantic View defines a volatility metric with <code>STDDEV</code>. MetricFlow has no standard-deviation aggregation. Two layers, same business, not always the same number, better to find that here than in a meeting.</div>`},
+
+  {clock:"1:21",min:8,title:"Ship it to production: job, docs, dbt State",body:`
+    <p>Create a production job running <code>dbt build</code> with <b>"generate docs on run" enabled</b>, targeting your production environment. Run it twice, the second run skips unchanged models via <b>dbt State</b>.</p>
+    <div class="callout cp"><span class="lab">The second hard gate</span>This job must succeed, and it must generate docs. The next section reads its output, without it your dbt Catalog is empty, and with <code>dbt build</code> alone the Columns tab is blank.</div>`},
+
+  {clock:"1:29",min:8,title:"dbt Catalog: the metadata the agent will use",body:`
+    <p>Open <b>Catalog</b> from the top navigation. This is the bridge into the AI section, and it rests on one fact:</p>
+    <div class="callout key"><span class="lab">Why this matters</span><b>dbt Catalog and the dbt MCP Server read the same metadata, through the same Discovery API.</b> Catalog renders it for a human; the MCP Server hands it to an agent. This isn't a documentation tour; it's a preview of the agent's context window.</div>
+    <ul>
+      <li><b>Lineage.</b> Click <em>Explore Lineage</em> and colour the DAG by model layer, then materialization.</li>
+      <li><b>A mart page.</b> The <em>Details</em> section shows <b>contracted status</b>, the contracts you enforced at 0:46, published as a fact anyone can look up.</li>
+      <li><b>The Columns tab.</b> Every column with its data type, description, tags and per-column test results.</li>
+    </ul>
+    <p>Then the payoff: read one good column description, then find a thin one. Ask which one an agent could act on.</p>
+    <div class="callout fb"><span class="lab">The takeaway</span>Good AI answers come from descriptions, tests, contracts and metric definitions, which is to say they come from the pull request, not the prompt. Column-level lineage and model performance are Enterprise+ only; everything else works on all plans.</div>
+    <p><a href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol/blob/main/dbt/catalog-tour.md" target="_blank">Full Catalog tour ↗</a></p>`},
+
+  {clock:"1:37",min:18,title:"Ask your data in plain English",body:`
+    <p>You've just seen exactly what metadata exists. Now watch an agent use it.</p>
+    <p><b>Cortex Analyst</b> against the Snowflake Semantic View: fully hands-on, works today. Try your track's question:</p>
+    <pre class="tw-q">"..."</pre>
+    <p>You should see these metrics come back:</p>
+    <div class="tw-metrics"></div>
+    <div class="callout key"><span class="lab">Your track's governance beat</span><span class="tw-beat"></span></div>
+    <div class="callout fb"><span class="lab">The dbt MCP half</span>Delivered as a guided read-through: direct registration into Snowflake Intelligence doesn't work yet (Snowflake's external MCP connectors need a confidential OAuth client with a secret; dbt issues public clients using PKCE). It works today in any MCP client, see section 3 above.</div>`},
+
+  {clock:"1:55",min:5,title:"Wrap, pull request & next steps",body:`
+    <p>Commit and open a pull request. Don't merge: the point is the change is <em>reviewable</em>, not that it ships. Look at what's in the diff, including the contract change.</p>
+    <p>Full loop done: raw → governed → catalogued → asked in English.</p>`}
+];
+
+const list=document.getElementById('steplist');
+let doneState = {};
+function renderSteps(){
+  list.innerHTML='';
+  steps.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='step'+(doneState[i]?' done':'');
+    el.innerHTML=`
+      <div class="step-head">
+        <div class="chk">${doneState[i]?'✓':''}</div>
+        <div class="clock">${s.clock}</div>
+        <div class="step-title">${s.title}</div>
+        <div class="min">${s.min} min</div>
+        <div class="caret">▶</div>
+      </div>
+      <div class="step-body">${s.body}</div>`;
+    // toggle open on head click (except checkbox)
+    el.querySelector('.step-head').addEventListener('click',(e)=>{
+      if(e.target.classList.contains('chk')){
+        doneState[i]=!doneState[i]; save(); renderSteps(); return;
+      }
+      el.classList.toggle('open');
+    });
+    el.querySelector('.chk').addEventListener('click',(e)=>{
+      e.stopPropagation(); doneState[i]=!doneState[i]; save(); renderSteps();
+    });
+    list.appendChild(el);
+  });
+  applyTrack();
+  updateCount();
+}
+function updateCount(){
+  const n=Object.values(doneState).filter(Boolean).length;
+  document.getElementById('donecount').textContent=n+' / '+steps.length+' steps done';
+}
+function applyTrack(){
+  if(!curTrack) return;
+  const d=trackData[curTrack];
+  document.querySelectorAll('.tw-schema').forEach(e=>e.textContent=d.schema);
+  document.querySelectorAll('.tw-folder').forEach(e=>e.textContent='projects/'+(curTrack==='fs'?'financial_services':curTrack));
+  document.querySelectorAll('.tw-q').forEach(e=>e.textContent=d.q);
+  document.querySelectorAll('.tw-beat').forEach(e=>e.innerHTML=d.beat);
+  document.querySelectorAll('.tw-metrics').forEach(e=>{
+    e.innerHTML=d.metrics.map(m=>'<code style="margin:2px 4px 2px 0;display:inline-block">'+m+'</code>').join('');
+  });
+}
+
+/* ---------- track selection ---------- */
+document.querySelectorAll('.track').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.track').forEach(x=>x.classList.remove('sel'));
+    t.classList.add('sel'); curTrack=t.dataset.t; save();
+    const d=trackData[curTrack];
+    document.getElementById('trackbanner').innerHTML=
+      '<b>'+d.name+'</b> selected. Set <b>Project subdirectory</b> to <code>projects/'+
+      (curTrack==='fs'?'financial_services':curTrack)+'</code> in your dbt platform project. This guide is now tailored to your track.';
+    applyTrack();
+  });
+});
+
+/* ---------- persistence (in-memory + best-effort) ---------- */
+let store={};
+function save(){ store={done:doneState,track:curTrack}; }
+function resetAll(){ doneState={}; curTrack=null; store={};
+  document.querySelectorAll('.track').forEach(x=>x.classList.remove('sel'));
+  document.getElementById('trackbanner').innerHTML=
+    'Pick a track above. Then, whichever you choose, set the <b>Project subdirectory</b> field in your dbt platform project to that folder path. This is the single most common setup mistake in the lab.';
+  renderSteps();
+}
+
+/* progress bar */
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const pct=(h.scrollTop)/(h.scrollHeight-h.clientHeight)*100;
+  document.getElementById('progress').style.width=pct+'%';
+});
+
+renderSteps();
+</script>
+</body>
+</html>
