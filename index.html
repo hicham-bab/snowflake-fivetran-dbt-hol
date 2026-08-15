@@ -46,16 +46,32 @@
   .lead{color:var(--muted); margin:0 0 26px; max-width:760px}
 
   /* architecture flow */
-  .flow{display:flex; align-items:stretch; gap:0; flex-wrap:wrap; justify-content:center}
-  .node{flex:1 1 170px; min-width:150px; background:var(--panel); border:1px solid var(--border);
-    border-radius:var(--radius); padding:18px 16px; cursor:pointer; transition:.18s; position:relative}
+  .flow{display:grid; grid-template-columns:repeat(6,1fr); gap:26px 0; align-items:stretch}
+  @media(max-width:1000px){.flow{grid-template-columns:repeat(3,1fr); gap:34px 0}}
+  @media(max-width:620px){.flow{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:400px){.flow{grid-template-columns:1fr}}
+  .node{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 14px; cursor:pointer; transition:.18s; position:relative;
+    display:flex; flex-direction:column; justify-content:flex-start}
+  /* chevron between nodes, drawn in the gutter so it can never orphan */
+  .node:not(:last-child)::after{content:"›"; position:absolute; right:-13px; top:50%;
+    transform:translateY(-50%); font-size:26px; line-height:1; color:var(--faint); z-index:2}
+  @media(max-width:1000px){
+    .node:nth-child(3n)::after{content:none}
+    .node:last-child::after{content:none}
+  }
+  @media(max-width:620px){
+    .node:nth-child(3n)::after{content:"›"}
+    .node:nth-child(2n)::after{content:none}
+  }
+  @media(max-width:400px){.node::after{content:none !important}}
   .node:hover{transform:translateY(-3px); border-color:var(--nc,#3a4552)}
   .node.active{border-color:var(--nc); box-shadow:0 0 0 1px var(--nc), 0 10px 30px rgba(0,0,0,.35)}
-  .node .dot{width:10px;height:10px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:8px}
-  .node h3{margin:0 0 4px; font-size:16px}
-  .node p{margin:0; font-size:12.5px; color:var(--muted)}
-  .arrow{display:flex; align-items:center; color:var(--faint); font-size:22px; padding:0 6px}
-  @media(max-width:760px){.arrow{transform:rotate(90deg); padding:6px 0; width:100%; justify-content:center}}
+  .node .dot{width:9px;height:9px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:7px}
+  .node h3{margin:0 0 4px; font-size:14.5px; letter-spacing:-.01em}
+  .node p{margin:0; font-size:12px; color:var(--muted); line-height:1.45}
+  .node .more{margin-top:auto; padding-top:10px; font-size:11px; color:var(--nc); opacity:.85;
+    letter-spacing:.03em; text-transform:uppercase}
   .node-detail{margin-top:18px; background:var(--panel2); border:1px solid var(--border);
     border-left:4px solid var(--nc,#3a4552); border-radius:12px; padding:18px 20px; display:none}
   .node-detail.show{display:block; animation:fade .25s ease}
@@ -103,6 +119,21 @@
   .step-body{display:none; padding:2px 20px 20px 56px}
   .step.open .step-body{display:block}
   .step-body p{margin:.5em 0}
+  .listbar{display:flex; align-items:center; gap:10px; margin:-10px 0 18px}
+  .btn.sm{padding:6px 12px; font-size:12.5px}
+  .hint{font-size:12.5px; color:var(--faint)}
+  .caret{color:var(--muted); transition:.2s; font-size:12px;
+    border:1px solid var(--border); border-radius:6px; padding:3px 7px; background:var(--panel2)}
+  .step-head:hover .caret{color:var(--text); border-color:var(--faint)}
+  .step.open .caret{transform:rotate(90deg)}
+  .chk{cursor:pointer}
+  .chk:hover{border-color:var(--green)}
+  /* sticky progress pill */
+  #pill{position:fixed; right:18px; bottom:18px; z-index:90; background:var(--panel);
+    border:1px solid var(--border); border-radius:999px; padding:9px 16px; font-size:13px;
+    color:var(--muted); box-shadow:0 8px 26px rgba(0,0,0,.45); display:none}
+  #pill b{color:var(--text)}
+  @media(max-width:620px){#pill{right:10px; bottom:10px; font-size:12px}}
   .step-body ul{margin:.4em 0; padding-left:20px}
   .step-body li{margin:.3em 0}
   code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
@@ -140,6 +171,7 @@
 </head>
 <body>
 <div id="progress"></div>
+<div id="pill"><b><span id="pilln">0</span> / 10</b> steps done</div>
 
 <header class="hero">
   <div class="wrap">
@@ -167,27 +199,22 @@
   <p class="lead">One loop, end to end. Click any layer to see what it does and what you'll actually see happen.</p>
   <div class="flow" id="flow">
     <div class="node" data-k="fivetran" style="--nc:#2f80ff">
-      <h3><span class="dot"></span>Fivetran</h3><p>Ingest: land raw data</p>
+      <h3><span class="dot"></span>Fivetran</h3><p>Ingest: land raw data</p><span class="more">Click for detail</span>
     </div>
-    <div class="arrow">→</div>
     <div class="node" data-k="snowflake" style="--nc:#29b5e8">
-      <h3><span class="dot"></span>Snowflake</h3><p>Store: raw tables</p>
+      <h3><span class="dot"></span>Snowflake</h3><p>Store: raw tables</p><span class="more">Click for detail</span>
     </div>
-    <div class="arrow">→</div>
     <div class="node" data-k="dbt" style="--nc:#ff694a">
-      <h3><span class="dot"></span>dbt platform</h3><p>Transform &amp; govern</p>
+      <h3><span class="dot"></span>dbt platform</h3><p>Transform &amp; govern</p><span class="more">Click for detail</span>
     </div>
-    <div class="arrow">→</div>
     <div class="node" data-k="sem" style="--nc:#e3b341">
-      <h3><span class="dot"></span>Semantic layer</h3><p>Define meaning</p>
+      <h3><span class="dot"></span>Semantic layer</h3><p>Define meaning</p><span class="more">Click for detail</span>
     </div>
-    <div class="arrow">→</div>
     <div class="node" data-k="catalog" style="--nc:#3fb950">
-      <h3><span class="dot"></span>dbt Catalog</h3><p>See what the agent sees</p>
+      <h3><span class="dot"></span>dbt Catalog</h3><p>See what the agent sees</p><span class="more">Click for detail</span>
     </div>
-    <div class="arrow">→</div>
     <div class="node" data-k="ai" style="--nc:#7c5cff">
-      <h3><span class="dot"></span>Snowflake Intelligence</h3><p>Ask in English</p>
+      <h3><span class="dot"></span>Snowflake Intelligence</h3><p>Ask in English</p><span class="more">Click for detail</span>
     </div>
   </div>
   <div class="node-detail" id="ndetail"></div>
@@ -231,7 +258,12 @@
 <!-- STEPS -->
 <section class="wrap" id="steps">
   <h2>2 · The run of show</h2>
-  <p class="lead">Ten timeboxed sections, 120 minutes, hard stop. Check off each one as you go, your progress is saved in this browser. Every step has a fallback so you're never stuck.</p>
+  <p class="lead">Ten timeboxed sections, 120 minutes, hard stop. <b>Click any row to open it.</b> Tick the box as you go, your progress is saved in this browser. Every step has a fallback so you're never stuck.</p>
+  <div class="listbar">
+    <button class="btn sm" onclick="setAll(true)">Expand all</button>
+    <button class="btn sm" onclick="setAll(false)">Collapse all</button>
+    <span class="hint" id="openhint"></span>
+  </div>
   <div id="steplist"></div>
 </section>
 
@@ -272,7 +304,7 @@
 <footer>
   <div class="wrap">
     <p>Interactive attendee walkthrough · based on the <a href="https://github.com/hicham-bab/snowflake-fivetran-dbt-hol" target="_blank">snowflake-fivetran-dbt-hol</a> lab.</p>
-    <p>Fivetran (ingest) → Snowflake (store) → dbt platform (transform &amp; govern) → semantic layer (define meaning) → Snowflake Intelligence (ask in English).</p>
+    <p>Fivetran (ingest) → Snowflake (store) → dbt platform (transform &amp; govern) → semantic layer (define meaning) → dbt Catalog (see the metadata) → Snowflake Intelligence (ask in English).</p>
   </div>
 </footer>
 
@@ -406,19 +438,34 @@ function renderSteps(){
       if(e.target.classList.contains('chk')){
         doneState[i]=!doneState[i]; save(); renderSteps(); return;
       }
-      el.classList.toggle('open');
+      el.classList.toggle('open'); updateHint();
     });
     el.querySelector('.chk').addEventListener('click',(e)=>{
       e.stopPropagation(); doneState[i]=!doneState[i]; save(); renderSteps();
     });
     list.appendChild(el);
   });
+  // open the first step so the list is visibly expandable
+  const first=list.querySelector('.step');
+  if(first && !window.__opened){ first.classList.add('open'); window.__opened=true; }
   applyTrack();
   updateCount();
+  updateHint();
+}
+function setAll(open){
+  document.querySelectorAll('.step').forEach(el=>el.classList.toggle('open',open));
+  updateHint();
+}
+function updateHint(){
+  const o=document.querySelectorAll('.step.open').length;
+  const h=document.getElementById('openhint');
+  if(h) h.textContent = o? o+' of '+steps.length+' open' : 'All collapsed';
 }
 function updateCount(){
   const n=Object.values(doneState).filter(Boolean).length;
   document.getElementById('donecount').textContent=n+' / '+steps.length+' steps done';
+  const pn=document.getElementById('pilln'); if(pn) pn.textContent=n;
+  const pill=document.getElementById('pill'); if(pill) pill.style.display = n>0 ? 'block' : 'none';
 }
 function applyTrack(){
   if(!curTrack) return;
