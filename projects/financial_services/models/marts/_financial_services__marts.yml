@@ -1,0 +1,984 @@
+version: 2
+
+models:
+
+  # ===========================================================================
+  # fs_risk_relationship_summary
+  #
+  # ENFORCED CONTRACT. dbt builds an empty table from the column list below,
+  # compares it against what the model actually produces, and refuses to build
+  # if they differ.
+  # ===========================================================================
+  - name: fs_risk_relationship_summary
+    description: >
+      The headline mart of the financial services track. One row per customer and institution relationship, 2,948 rows, with both conformed dimensions attached. Contains no personal data.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: risk_profile_id
+        data_type: number(38,0)
+        description: Primary key from the source.
+        constraints:
+          - type: not_null
+        data_tests:
+          - unique
+          - not_null
+
+        entity:
+          type: primary
+          name: risk_relationship
+      - name: customer_id
+        data_type: varchar
+        description: Customer identifier.
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+
+        entity:
+          type: foreign
+          name: customer
+      - name: institution_id
+        data_type: varchar
+        description: Institution identifier.
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+
+        entity:
+          type: foreign
+          name: institution
+      - name: as_of_date
+        data_type: date
+        description: >
+          The date this snapshot is as of, which is the last date the portfolio
+          was assessed. Every row carries the same value. The dbt Semantic Layer
+          needs a time dimension to aggregate against, and for a snapshot mart
+          this is the honest one.
+        data_tests:
+          - not_null
+
+        dimension:
+          type: time
+        granularity: day
+      - name: product_type
+        data_type: varchar
+        description: The product held in this relationship.
+
+        dimension:
+          type: categorical
+      - name: risk_pattern
+        data_type: varchar
+        description: How risk has behaved on this relationship over time.
+
+        dimension:
+          type: categorical
+      - name: risk_tier
+        data_type: varchar
+        description: >
+          Very Low, Low, Moderate, High or Very High, banded from
+          base_risk_score. This is the language a credit committee uses.
+        # HOL_BUG_FS_03
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Very Low', 'Low', 'Moderate', 'High']
+
+        dimension:
+          type: categorical
+      - name: exposure_band
+        data_type: varchar
+        description: Under 10K, 10K to 100K, 100K to 1M, or Over 1M.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Under 10K', '10K to 100K', '100K to 1M', 'Over 1M']
+
+        dimension:
+          type: categorical
+      - name: relationship_stage
+        data_type: varchar
+        description: New, Developing or Established.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['New', 'Developing', 'Established']
+
+        dimension:
+          type: categorical
+      - name: customer_segment
+        data_type: varchar
+        description: Retail, Small Business, Corporate, High Net Worth or Institutional.
+
+        dimension:
+          type: categorical
+      - name: income_bracket
+        data_type: varchar
+        description: Low through Ultra-High.
+
+        dimension:
+          type: categorical
+      - name: credit_score_range
+        data_type: varchar
+        description: The banded form of credit_score.
+
+        dimension:
+          type: categorical
+      - name: education_level
+        data_type: varchar
+        description: Highest education level attained by the customer.
+
+        dimension:
+          type: categorical
+      - name: employment_sector
+        data_type: varchar
+        description: Sector the customer works in.
+
+        dimension:
+          type: categorical
+      - name: institution_name
+        data_type: varchar
+        description: >
+          Institution trading name. Available for drill-down; the semantic
+          layer leads with type, size and region instead.
+
+      - name: institution_type
+        data_type: varchar
+        description: The kind of institution.
+
+        dimension:
+          type: categorical
+      - name: institution_size
+        data_type: varchar
+        description: Small, Medium, Large or Global.
+
+        dimension:
+          type: categorical
+      - name: region
+        data_type: varchar
+        description: Six regions, including International.
+
+        dimension:
+          type: categorical
+      - name: risk_appetite_band
+        data_type: varchar
+        description: Conservative, Balanced or Aggressive.
+
+        dimension:
+          type: categorical
+      - name: primary_risk_model
+        data_type: varchar
+        description: The scoring methodology the institution uses.
+
+        dimension:
+          type: categorical
+      - name: regulatory_rating
+        data_type: number(38,0)
+        description: Regulatory rating, 1 (best) to 5.
+
+      - name: base_risk_score
+        data_type: number(9,4)
+        description: Baseline risk score for the relationship, 0 to 1.
+        data_tests:
+          - not_null
+
+      - name: repayment_history_score
+        data_type: number(38,0)
+        description: Repayment history score, 1 to 10.
+
+      - name: collateral_quality_score
+        data_type: number(9,4)
+        description: >
+          Null where the source left it blank, which is about two thirds of
+          rows. is_collateral_unassessed records that explicitly.
+
+      - name: liquidity_ratio
+        data_type: number(9,4)
+        description: Null where the source left it blank.
+
+      - name: projected_cash_flow_rating
+        data_type: number(9,4)
+        description: Null where the source left it blank.
+
+      - name: recent_transaction_volatility
+        data_type: number(9,4)
+        description: Recent volatility in transaction behaviour.
+
+      - name: total_exposure
+        data_type: number(18,2)
+        description: Total exposure on the relationship in USD.
+        data_tests:
+          - not_null
+
+      - name: risk_weighted_exposure
+        data_type: number(18,2)
+        description: >
+          Exposure multiplied by the base risk score. The number a risk officer
+          reaches for first: how much money is at stake, weighted by how likely
+          it is to go wrong.
+
+      - name: relationship_length_months
+        data_type: number(38,0)
+        description: Months the relationship has existed, 1 to 120.
+
+      - name: products_held
+        data_type: number(38,0)
+        description: Number of products held, 1 to 5.
+
+      - name: credit_score
+        data_type: number(38,0)
+        description: Customer credit score, 303 to 850.
+
+      - name: annual_income
+        data_type: number(18,2)
+        description: Customer reported annual income in USD.
+
+      - name: debt_to_income_ratio
+        data_type: number(9,4)
+        description: Customer debt-to-income ratio.
+
+      - name: years_of_credit_history
+        data_type: number(38,0)
+        description: Years since the customer's first credit line.
+
+      - name: num_delinquencies_last_2_years
+        data_type: number(38,0)
+        description: Delinquencies in the trailing 24 months.
+
+      - name: avg_risk_score
+        data_type: number(9,4)
+        description: Pre-aggregated average risk score from the source.
+
+      - name: risk_score_volatility
+        data_type: number(9,4)
+        description: Pre-aggregated standard deviation of the risk score.
+
+      - name: avg_fraud_probability
+        data_type: number(9,4)
+        description: Pre-aggregated average fraud probability.
+
+      - name: anomaly_percentage
+        data_type: number(9,4)
+        description: Pre-aggregated share of months flagged as anomalous.
+
+      - name: approval_percentage
+        data_type: number(9,4)
+        description: Pre-aggregated share of assessments recommending approval.
+
+      - name: risk_adjusted_return
+        data_type: number(9,4)
+        description: Return on the relationship adjusted for risk.
+
+      - name: customer_value_score
+        data_type: number(38,0)
+        description: Composite customer value score, 18 to 161.
+
+      - name: customer_value_category
+        data_type: varchar
+        description: Value tier derived from the composite score.
+
+        dimension:
+          type: categorical
+      - name: risk_trend
+        data_type: varchar
+        description: Direction of travel in risk.
+
+      - name: optimization_priority
+        data_type: varchar
+        description: Priority of the opportunity the source model identified.
+
+      - name: is_homeowner
+        data_type: boolean
+        description: True when the customer owns their home.
+
+      - name: has_previous_bankruptcy
+        data_type: boolean
+        description: True when the customer has a prior bankruptcy.
+
+      - name: is_collateral_unassessed
+        data_type: boolean
+        description: True where the source left collateral quality blank.
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - institution_id
+    semantic_model:
+      enabled: true
+      name: fs_risk_relationship_summary
+    agg_time_dimension: as_of_date
+    metrics:
+      - name: total_exposure
+        label: Total exposure
+        description: Total exposure across relationships in USD.
+        type: simple
+        agg: sum
+        expr: total_exposure
+      - name: average_exposure
+        label: Average exposure
+        description: Average exposure per relationship in USD.
+        type: simple
+        agg: average
+        expr: total_exposure
+      - name: total_risk_weighted_exposure
+        label: Total risk-weighted exposure
+        description: >
+          Exposure multiplied by baseline risk score, summed. The headline
+          capital-at-risk figure, and the one a regulator asks about.
+        type: simple
+        agg: sum
+        expr: risk_weighted_exposure
+      - name: average_base_risk_score
+        label: Average base risk score
+        description: Average baseline risk score across relationships, 0 to 1.
+        type: simple
+        agg: average
+        expr: base_risk_score
+      - name: average_credit_score
+        label: Average credit score
+        description: Average customer credit score.
+        type: simple
+        agg: average
+        expr: credit_score
+      - name: average_debt_to_income
+        label: Average debt to income
+        description: Average customer debt-to-income ratio.
+        type: simple
+        agg: average
+        expr: debt_to_income_ratio
+      - name: average_risk_adjusted_return
+        label: Average risk-adjusted return
+        description: Average return on the relationship adjusted for risk.
+        type: simple
+        agg: average
+        expr: risk_adjusted_return
+      - name: average_customer_value_score
+        label: Average customer value score
+        description: Average composite customer value score.
+        type: simple
+        agg: average
+        expr: customer_value_score
+      - name: risk_score_volatility
+        label: Risk score volatility
+        description: >
+          Average of the source's pre-computed risk score volatility. See the note
+          at the top of this file: this is close to, but not the same as, the
+          STDDEV-based metric of the same name in the Snowflake Semantic View.
+        type: simple
+        agg: average
+        expr: risk_score_volatility
+      - name: relationship_count
+        label: Relationship count
+        description: Number of customer and institution relationships.
+        type: simple
+        agg: count
+        expr: risk_profile_id
+      - name: prior_bankruptcy_count
+        label: Prior bankruptcy count
+        description: Relationships where the customer has a prior bankruptcy.
+        type: simple
+        agg: sum
+        expr: case when has_previous_bankruptcy then 1 else 0 end
+      - name: unassessed_collateral_count
+        label: Unassessed collateral count
+        description: Relationships where collateral was never assessed.
+        type: simple
+        agg: sum
+        expr: case when is_collateral_unassessed then 1 else 0 end
+      - name: prior_bankruptcy_rate
+        label: Prior bankruptcy rate
+        description: >
+          Share of relationships where the customer has a prior bankruptcy, 0 to 1.
+        type: ratio
+        numerator: prior_bankruptcy_count
+        denominator: relationship_count
+      - name: unassessed_collateral_rate
+        label: Unassessed collateral rate
+        description: >
+          Share of relationships with no collateral assessment on file, 0 to 1. In
+          this data it is roughly two thirds, which is a control finding rather
+          than a data problem.
+        type: ratio
+        numerator: unassessed_collateral_count
+        denominator: relationship_count
+
+  # ===========================================================================
+  # fs_monthly_risk_assessment
+  # ===========================================================================
+  - name: fs_monthly_risk_assessment
+    description: >
+      The time-series mart. One row per relationship per month, 106,128 rows covering 2022-01 to 2024-11, with the conformed dimensions attached. Contract enforced. Contains no personal data.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: assessment_id
+        data_type: number(38,0)
+        description: Surrogate key from the source.
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+
+        entity:
+          type: primary
+          name: monthly_assessment
+      - name: customer_id
+        data_type: varchar
+        description: Customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fs_risk_relationship_summary')
+                field: customer_id
+
+        entity:
+          type: foreign
+          name: customer
+      - name: institution_id
+        data_type: varchar
+        description: Institution identifier.
+        data_tests:
+          - not_null
+
+        entity:
+          type: foreign
+          name: institution
+      - name: assessment_date
+        data_type: date
+        description: Assessment date.
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+
+        dimension:
+          type: time
+        granularity: day
+      - name: assessment_month
+        data_type: number(38,0)
+        description: Month number, 1 to 12.
+
+      - name: assessment_year
+        data_type: number(38,0)
+        description: Calendar year, 2022 to 2024.
+
+      - name: current_risk_score
+        data_type: number(9,4)
+        description: Risk score for the month, 0 to 1.
+        data_tests:
+          - not_null
+
+      - name: risk_change_from_previous
+        data_type: number(9,4)
+        description: >
+          Change in risk score since the previous month. Null on the first
+          assessment of each relationship, 2,948 rows, because there is no
+          previous month. Null means unknown here, not zero, and the difference
+          matters when you average it.
+
+      - name: fraud_probability
+        data_type: number(9,4)
+        description: Modelled probability of fraud for the month, 0 to 1.
+
+      - name: approval_confidence
+        data_type: number(9,4)
+        description: Confidence in the approval recommendation, 0 to 1.
+
+      - name: monthly_transaction_volume
+        data_type: number(18,2)
+        description: Transaction volume for the month in USD.
+
+      - name: transaction_count
+        data_type: number(38,0)
+        description: Number of transactions in the month.
+
+      - name: total_exposure
+        data_type: number(18,2)
+        description: Total exposure on the relationship in USD.
+
+      - name: risk_level
+        data_type: varchar
+        description: The monthly banded risk level.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Very Low', 'Low', 'Moderate', 'High', 'Very High']
+
+        dimension:
+          type: categorical
+      - name: risk_tier
+        data_type: varchar
+        description: The relationship-level risk tier, carried through.
+
+        dimension:
+          type: categorical
+      - name: anomaly_type
+        data_type: varchar
+        description: The kind of anomaly, or 'None'.
+
+        dimension:
+          type: categorical
+      - name: approval_recommendation
+        data_type: varchar
+        description: The decision the model recommends for the month.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Approve'
+                  - 'Approve with Conditions'
+                  - 'Approve with Strict Conditions'
+                  - 'Deny'
+
+        dimension:
+          type: categorical
+      - name: exposure_band
+        data_type: varchar
+        description: The relationship exposure band, carried through.
+
+        dimension:
+          type: categorical
+      - name: relationship_stage
+        data_type: varchar
+        description: New, Developing or Established.
+
+      - name: product_type
+        data_type: varchar
+        description: The product held in this relationship.
+
+        dimension:
+          type: categorical
+      - name: customer_segment
+        data_type: varchar
+        description: Customer segment.
+
+        dimension:
+          type: categorical
+      - name: income_bracket
+        data_type: varchar
+        description: Customer income bracket.
+
+        dimension:
+          type: categorical
+      - name: credit_score_range
+        data_type: varchar
+        description: Customer credit score band.
+
+        dimension:
+          type: categorical
+      - name: education_level
+        data_type: varchar
+        description: Customer education level.
+
+        dimension:
+          type: categorical
+      - name: employment_sector
+        data_type: varchar
+        description: Customer employment sector.
+
+        dimension:
+          type: categorical
+      - name: institution_type
+        data_type: varchar
+        description: The kind of institution.
+
+        dimension:
+          type: categorical
+      - name: institution_size
+        data_type: varchar
+        description: Small, Medium, Large or Global.
+
+        dimension:
+          type: categorical
+      - name: region
+        data_type: varchar
+        description: Institution region.
+
+        dimension:
+          type: categorical
+      - name: risk_appetite_band
+        data_type: varchar
+        description: Conservative, Balanced or Aggressive.
+
+        dimension:
+          type: categorical
+      - name: regulatory_rating
+        data_type: number(38,0)
+        description: Regulatory rating, 1 (best) to 5.
+
+      - name: is_anomaly
+        data_type: boolean
+        description: True when the month was flagged as anomalous.
+
+      - name: is_denied
+        data_type: boolean
+        description: True when the recommendation for the month was Deny.
+
+      - name: is_first_assessment
+        data_type: boolean
+        description: >
+          True on the first assessment of each relationship. Exactly 2,948 rows,
+          one per relationship. This is why risk_change_from_previous is null
+          on those rows.
+
+      - name: is_material_deterioration
+        data_type: boolean
+        description: >
+          True when risk worsened by 0.10 or more that month. Null on first
+          assessments, because "worse than what?" has no answer there.
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - institution_id
+              - assessment_date
+    semantic_model:
+      enabled: true
+      name: fs_monthly_risk_assessment
+    agg_time_dimension: assessment_date
+    metrics:
+      - name: average_risk_score
+        label: Average risk score
+        description: >
+          Average monthly credit risk score, 0 to 1. Higher is riskier. The single
+          most-asked number in this track.
+        type: simple
+        agg: average
+        expr: current_risk_score
+      - name: average_fraud_probability
+        label: Average fraud probability
+        description: Average modelled probability of fraud, 0 to 1.
+        type: simple
+        agg: average
+        expr: fraud_probability
+      - name: average_risk_change
+        label: Average risk change
+        description: >
+          Average month-on-month change in risk score. Positive means the book is
+          getting riskier. First assessments are excluded because there is nothing
+          to compare them to.
+        type: simple
+        agg: average
+        expr: risk_change_from_previous
+      - name: average_approval_confidence
+        label: Average approval confidence
+        description: Average confidence in the approval recommendation, 0 to 1.
+        type: simple
+        agg: average
+        expr: approval_confidence
+      - name: total_transaction_volume
+        label: Total transaction volume
+        description: Total transaction volume in USD.
+        type: simple
+        agg: sum
+        expr: monthly_transaction_volume
+      - name: assessment_count
+        label: Assessment count
+        description: Number of monthly assessments.
+        type: simple
+        agg: count
+        expr: assessment_id
+      - name: anomaly_count
+        label: Anomaly count
+        description: Monthly assessments flagged as anomalous.
+        type: simple
+        agg: sum
+        expr: case when is_anomaly then 1 else 0 end
+      - name: denied_assessment_count
+        label: Denied assessment count
+        description: Monthly assessments recommending Deny.
+        type: simple
+        agg: sum
+        expr: case when is_denied then 1 else 0 end
+      - name: deterioration_count
+        label: Deterioration count
+        description: Months where risk worsened by 0.10 or more.
+        type: simple
+        agg: sum
+        expr: case when is_material_deterioration then 1 else 0 end
+      - name: anomaly_rate
+        label: Anomaly rate
+        description: Share of monthly assessments flagged as anomalous, 0 to 1.
+        type: ratio
+        numerator: anomaly_count
+        denominator: assessment_count
+      - name: denial_rate
+        label: Denial rate
+        description: Share of monthly assessments recommending Deny, 0 to 1.
+        type: ratio
+        numerator: denied_assessment_count
+        denominator: assessment_count
+      - name: approval_rate
+        label: Approval rate
+        description: >
+          Share of monthly assessments recommending any form of approval, 0 to 1.
+          Defined as one minus the denial rate, so the two can never disagree.
+        type: derived
+        expr: 1 - denial_rate
+        input_metrics:
+          - name: denial_rate
+
+      - name: deterioration_rate
+        label: Deterioration rate
+        description: Share of months where risk worsened by 0.10 or more, 0 to 1.
+        type: ratio
+        numerator: deterioration_count
+        denominator: assessment_count
+
+  # ===========================================================================
+  # fs_loan_portfolio
+  #
+  # ENFORCED CONTRACT, and here the contract is doing governance work. It is
+  # the written-down list of what is allowed out of this project. Add a PII
+  # column back upstream and this model fails rather than quietly growing one.
+  # ===========================================================================
+  - name: fs_loan_portfolio
+    description: >
+      Consumer loan portfolio, 39,717 applications. Twelve personal-data
+      columns present in the source do not appear here, and the contract is
+      what keeps it that way. See models/staging/stg_loan.sql.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: loan_id
+        data_type: number(38,0)
+        description: Primary key, the source loan id.
+        constraints:
+          - type: not_null
+        data_tests:
+          - unique
+          - not_null
+
+      - name: issued_at
+        data_type: date
+        description: Issue month, parsed from 'Dec-11'.
+
+      - name: credit_grade
+        data_type: varchar
+        description: Credit grade A to G.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
+      - name: credit_sub_grade
+        data_type: varchar
+        description: Credit sub-grade, A1 to G5.
+
+      - name: grade_tier
+        data_type: varchar
+        description: Prime (A, B), Near-prime (C) or Subprime (D to G).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Prime', 'Near-prime', 'Subprime']
+
+      - name: loan_purpose
+        data_type: varchar
+        description: Stated purpose of the loan. 14 distinct values.
+
+      - name: loan_status
+        data_type: varchar
+        description: Fully Paid, Current or Charged Off.
+
+      - name: income_verification_status
+        data_type: varchar
+        description: Verified, Source Verified or Not Verified.
+
+      - name: funded_amount_band
+        data_type: varchar
+        description: Under 5K, 5K to 15K, 15K to 25K, or Over 25K.
+
+      # HOL_BUG_FS_02
+      - name: emp_title
+        data_type: varchar
+        description: Employer name.
+
+      - name: state_code
+        data_type: varchar
+        description: >
+          Two-letter US state code. The finest geographic grain in this mart.
+          zip_code exists in the source and is deliberately excluded.
+
+      - name: home_ownership
+        data_type: varchar
+        description: MORTGAGE, RENT, OWN, OTHER or NONE.
+
+      - name: income_band
+        data_type: varchar
+        description: Under 40K, 40K to 75K, 75K to 150K, or Over 150K.
+
+      - name: funded_amount
+        data_type: number(18,2)
+        description: Amount funded in USD, 500 to 35,000.
+        data_tests:
+          - not_null
+
+      - name: term_months
+        data_type: number(38,0)
+        description: Loan term in months, 36 or 60.
+
+      - name: interest_rate_pct
+        data_type: number(9,4)
+        description: Interest rate, 5.42 to 24.59.
+
+      - name: annual_income
+        data_type: number(18,2)
+        description: Reported annual income in USD.
+
+      - name: debt_to_income_ratio
+        data_type: number(9,4)
+        description: Debt-to-income ratio, 0 to 29.99.
+
+      - name: revolving_utilisation_pct
+        data_type: number(9,4)
+        description: Revolving utilisation, parsed from '28.30%'.
+
+      - name: open_accounts
+        data_type: number(38,0)
+        description: Open credit accounts.
+
+      - name: total_accounts
+        data_type: number(38,0)
+        description: Total credit accounts.
+
+      - name: delinquencies_last_2_years
+        data_type: number(38,0)
+        description: Delinquencies in the trailing 24 months.
+
+      - name: public_records
+        data_type: number(38,0)
+        description: Derogatory public records.
+
+      - name: public_record_bankruptcies
+        data_type: number(38,0)
+        description: Public record bankruptcies. Null where the source said 'NA'.
+
+      - name: is_charged_off
+        data_type: boolean
+        description: True when the loan was charged off. 5,627 of 39,717 rows.
+
+      - name: has_adverse_credit_history
+        data_type: boolean
+        description: >
+          True when the borrower has any delinquency, public record or
+          bankruptcy on file.
+
+  # ===========================================================================
+  # vw_fs_data_quality
+  #
+  # No contract here on purpose. This is the model the lab edits live during
+  # the dbt Studio and Fusion tour.
+  # ===========================================================================
+  - name: vw_fs_data_quality
+    description: >
+      Data-quality scorecard, one row per data domain. Scores completeness,
+      validity and consistency out of 100 across the customer dimension, the
+      risk relationships, the monthly assessments and the loan portfolio.
+    columns:
+
+      - name: data_domain
+        description: Which part of the track the row scores.
+        data_tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Customer dimension'
+                  - 'Risk relationships'
+                  - 'Monthly assessments'
+                  - 'Loan portfolio'
+
+      - name: total_rows
+        description: Rows examined in the domain.
+
+      - name: completeness_score
+        description: Are the fields we need populated? 0 to 100.
+
+      - name: validity_score
+        description: Are values inside the range the business expects? 0 to 100.
+
+      - name: consistency_score
+        description: Do fields that should agree with each other agree? 0 to 100.
+
+      - name: data_quality_score
+        description: Simple average of the three dimension scores.
+
+      - name: data_quality_grade
+        description: A, B, C or D.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D']
+
+  # ===========================================================================
+  # Semantic view
+  # ===========================================================================
+  - name: sv_fs_credit_risk
+    description: >
+      Snowflake Semantic View over the credit risk star. Two logical tables
+      joined on the relationship key, so risk can be trended over time and
+      sliced by customer and institution attributes in one question. Read by
+      Cortex Analyst and Snowflake Intelligence. Contains no personal data.
+
+  # ===========================================================================
+  # STRETCH MARTS
+  # ===========================================================================
+  - name: fs_product_recommendations
+    description: >
+      Product recommendation outcomes by customer segment and lifecycle stage.
+      751 rows. Optional stretch material.
+    columns:
+      - name: recommendation_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: recommendation_outcome
+        description: Accepted, Rejected or Open.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Accepted', 'Rejected', 'Open']
+
+  - name: fs_term_deposit_conversion
+    description: >
+      Campaign conversion by occupation and education. Optional stretch
+      material. The overall base rate is 11.7%, so read every cell against
+      that rather than against zero.
+    columns:
+      - name: job_category
+        description: Occupation category.
+        data_tests:
+          - not_null
+      - name: education_level
+        description: Education level.
+        data_tests:
+          - not_null
+      - name: conversion_rate
+        description: Subscriptions divided by contacts, 0 to 1.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - job_category
+              - education_level

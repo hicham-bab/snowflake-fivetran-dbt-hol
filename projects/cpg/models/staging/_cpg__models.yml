@@ -1,0 +1,149 @@
+version: 2
+
+models:
+  - name: stg_cpg_records
+    description: >
+      Typed and renamed view over `cpg_raw.cpg_records`. One row per order line.
+      This is the only model in the project that reads from a source, so it is
+      the single place where raw column names and raw types are dealt with.
+    columns:
+
+      - name: record_id
+        description: Primary key. One row per order line.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: Order identifier.
+        data_tests:
+          - not_null
+
+      - name: customer_id
+        description: Customer identifier.
+        data_tests:
+          - not_null
+
+      - name: product_id
+        description: Product identifier.
+        data_tests:
+          - not_null
+
+      - name: order_date
+        description: Date the order was placed, cast from the raw VARCHAR.
+        data_tests:
+          - not_null
+
+      - name: order_total
+        description: Order value in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: order_status
+        description: Delivered, Shipped, Pending or Cancelled.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Delivered', 'Shipped', 'Pending', 'Cancelled']
+
+      - name: customer_segment
+        description: High-Value, Medium-Value or Low-Value.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['High-Value', 'Medium-Value', 'Low-Value']
+
+      - name: product_category
+        description: Top-level merchandising category.
+        data_tests:
+          - not_null
+
+      - name: product_subcategory
+        description: >
+          Merchandising subcategory. Note that in this data set subcategory is
+          not always consistent with category. That is a real property of the
+          source, not a modelling error, and vw_cpg_data_quality reports on it.
+
+      - name: customer_lifetime_value
+        description: Modelled customer lifetime value in USD.
+        data_tests:
+          - not_null
+
+      - name: product_rating
+        description: Average product rating, 1 to 5.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 5
+                inclusive: true
+
+      - name: stockout_rate
+        description: Share of periods the product was out of stock, 0 to 1.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: overstock_rate
+        description: Share of periods the product was overstocked, 0 to 1.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: inventory_level
+        description: Units on hand for the product.
+        data_tests:
+          - not_null
+
+      - name: demand_forecast
+        description: Forecast units of demand for the next period.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: inventory_turnover
+        description: Inventory turns per period.
+
+      - name: customer_satisfaction_rate
+        description: Customer satisfaction score, 0 to 1.
+
+      - name: revenue_growth_rate
+        description: Period-over-period revenue growth, as a ratio.
+
+      - name: price_elasticity
+        description: Modelled price elasticity of demand.
+
+      - name: is_price_optimized
+        description: >
+          True when a pricing recommendation has been applied to this product.
+          Converted in staging from the raw 'TRUE' / 'FALSE' string.
+        data_tests:
+          - not_null
+
+      - name: modelled_average_order_value
+        description: >
+          Modelled average order value for this customer, USD. Renamed from the
+          raw `average_order_value` so it is not confused with the average of
+          `order_total`, which is what the average_order_value metric computes.
+
+      - name: fivetran_synced_at
+        description: Timestamp Fivetran last wrote this row.
+        data_tests:
+          - not_null

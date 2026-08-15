@@ -1,0 +1,39 @@
+# RENAME THIS FILE to _<track_key>__models.yml
+version: 2
+
+models:
+  - name: stg_<source_table>
+    description: >
+      FILL ME. State the grain and the row count.
+    columns:
+
+      - name: <primary_key>
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: <categorical_column>
+        description: FILL ME.
+        data_tests:
+          - not_null
+          # Only list values you have actually verified against the source.
+          # An accepted_values test built from a guess fails at checkpoint 1
+          # and every attendee is blocked.
+          - accepted_values:
+              arguments:
+                values: ['<value_1>', '<value_2>']
+
+      - name: <numeric_column>
+        description: FILL ME.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: fivetran_synced_at
+        description: Timestamp Fivetran last wrote this row.
+        data_tests:
+          - not_null

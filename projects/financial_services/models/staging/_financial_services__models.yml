@@ -1,0 +1,682 @@
+version: 2
+
+models:
+
+  # ===========================================================================
+  # THE CREDIT RISK STAR
+  # ===========================================================================
+
+  - name: stg_risk_assess_customers
+    description: >
+      Customer dimension for the credit risk star. 1,000 rows.
+      `customer_name` is excluded and exposed only as an md5 hash. See the
+      governance note at the top of the model file.
+    columns:
+
+      - name: customer_id
+        description: Primary key. Format CUST-nnnn.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_name_hash
+        description: >
+          md5 of the source customer_name. Joins, does not read back. Not a
+          substitute for a Snowflake masking policy on the raw table.
+        data_tests:
+          - not_null
+
+      - name: customer_segment
+        description: Retail, Small Business, Corporate, High Net Worth or Institutional.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Retail', 'Small Business', 'Corporate', 'High Net Worth', 'Institutional']
+
+      - name: income_bracket
+        description: Low through Ultra-High.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Low', 'Lower-Middle', 'Middle', 'Upper-Middle', 'High', 'Ultra-High']
+
+      - name: credit_score
+        description: Credit score. Real range in this data is 303 to 850.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 300
+                max_value: 850
+                inclusive: true
+
+      - name: credit_score_range
+        description: The banded form of credit_score.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Poor (300-579)'
+                  - 'Fair (580-669)'
+                  - 'Good (670-739)'
+                  - 'Very Good (740-799)'
+                  - 'Excellent (800-850)'
+
+      - name: education_level
+        description: Highest education level attained.
+        data_tests:
+          - not_null
+
+      - name: employment_sector
+        description: Sector the customer works in. 10 distinct values.
+        data_tests:
+          - not_null
+
+      - name: annual_income
+        description: Reported annual income in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: debt_to_income_ratio
+        description: Total debt service over income. Real range 0.1 to 0.6.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: is_homeowner
+        description: Converted from the source's 'True' / 'False' string.
+        data_tests:
+          - not_null
+
+      - name: has_previous_bankruptcy
+        description: Converted from the source's 'True' / 'False' string.
+        data_tests:
+          - not_null
+
+  # ===========================================================================
+  - name: stg_risk_assess_financial_institutions
+    description: >
+      Institution dimension for the credit risk star. 20 rows. Small, conformed
+      and joined to by everything.
+    columns:
+
+      - name: institution_id
+        description: Primary key. Format FI-nnnn or FI-Cnnn.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: institution_name
+        description: >
+          Trading name. Commercially sensitive rather than personal data, so it
+          is carried through but kept out of the semantic layer's lead
+          dimensions.
+        data_tests:
+          - not_null
+
+      - name: institution_type
+        description: The kind of institution.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Commercial Bank'
+                  - 'Investment Bank'
+                  - 'Credit Union'
+                  - 'Asset Manager'
+                  - 'Insurance Company'
+
+      - name: institution_size
+        description: Small, Medium, Large or Global.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Small', 'Medium', 'Large', 'Global']
+
+      - name: region
+        description: Six regions, including International.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Northeast', 'Southeast', 'Midwest', 'Southwest', 'West', 'International']
+
+      - name: risk_appetite_score
+        description: >
+          Risk appetite as a number from 0 to 1, not a category. Renamed with a
+          _score suffix so nobody groups by it expecting three buckets.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: risk_appetite_band
+        description: Conservative, Balanced or Aggressive, derived from the score.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Conservative', 'Balanced', 'Aggressive']
+
+      - name: regulatory_rating
+        description: Regulatory rating, 1 (best) to 5.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 5
+                inclusive: true
+
+      - name: primary_risk_model
+        description: The scoring methodology the institution uses.
+        data_tests:
+          - not_null
+
+  # ===========================================================================
+  - name: stg_risk_assess_risk_profiles
+    description: >
+      The relationship fact: one row per customer and institution pair. 2,948
+      rows. Three text-typed numerics are converted with try_cast; see the note
+      at the top of the model file.
+    columns:
+
+      - name: risk_profile_id
+        description: Surrogate key from the source.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: Foreign key to stg_risk_assess_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_risk_assess_customers')
+                field: customer_id
+
+      - name: institution_id
+        description: Foreign key to stg_risk_assess_financial_institutions.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_risk_assess_financial_institutions')
+                field: institution_id
+
+      - name: product_type
+        description: The product held in this relationship.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Personal Loan'
+                  - 'Business Loan'
+                  - 'Mortgage'
+                  - 'Credit Card'
+                  - 'Investment Portfolio'
+                  - 'Insurance Policy'
+
+      - name: risk_pattern
+        description: How risk has behaved on this relationship over time.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Steady-Low'
+                  - 'Steady-Moderate'
+                  - 'Improving'
+                  - 'Cyclical'
+                  - 'Volatile-Improving'
+                  - 'Volatile-Deteriorating'
+
+      - name: base_risk_score
+        description: Baseline risk score. Real range 0.05 to 0.95.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: total_exposure
+        description: Total exposure in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: repayment_history_score
+        description: Repayment history score, 1 to 10.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 10
+                inclusive: true
+
+      - name: collateral_quality_score
+        description: >
+          Converted with try_cast from a text column. NULL on roughly 2,005 of
+          2,948 rows, which is the source saying "not assessed". No not_null
+          test, because that would be testing for something the source cannot
+          give us.
+
+      - name: liquidity_ratio
+        description: Converted with try_cast. NULL on roughly 2,160 rows.
+
+      - name: projected_cash_flow_rating
+        description: Converted with try_cast. NULL on roughly 2,054 rows.
+
+      - name: is_collateral_unassessed
+        description: True where the source left collateral quality blank.
+        data_tests:
+          - not_null
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - institution_id
+
+  # ===========================================================================
+  - name: stg_risk_assess_monthly_assessments
+    description: >
+      The time-series fact: one row per customer, institution and month.
+      106,128 rows covering 2022-01-01 to 2024-11-16.
+      `risk_change_from_previous_raw` is deliberately left as VARCHAR here.
+    columns:
+
+      - name: assessment_id
+        description: Surrogate key from the source.
+        data_tests:
+          - not_null
+
+      - name: customer_id
+        description: Foreign key to stg_risk_assess_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_risk_assess_customers')
+                field: customer_id
+
+      - name: institution_id
+        description: Foreign key to stg_risk_assess_financial_institutions.
+        data_tests:
+          - not_null
+
+      - name: assessment_date
+        description: Assessment date, cast from the raw VARCHAR.
+        data_tests:
+          - not_null
+
+      - name: current_risk_score
+        description: Risk score for the month. Real range 0.01 to 0.99.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: risk_level
+        description: The banded form of current_risk_score.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Very Low', 'Low', 'Moderate', 'High', 'Very High']
+
+      - name: risk_change_from_previous_raw
+        description: >
+          Still text. Empty string on the first assessment of each
+          relationship, which is exactly 2,948 rows. Converted in
+          int_fs_monthly_risk_enriched, where the business decision about what
+          blank means belongs.
+        data_tests:
+          - not_null
+
+      - name: fraud_probability
+        description: Modelled fraud probability. Real range 0.001 to 0.9.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: approval_recommendation
+        description: The decision the model recommends.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Approve'
+                  - 'Approve with Conditions'
+                  - 'Approve with Strict Conditions'
+                  - 'Deny'
+
+      - name: approval_confidence
+        description: Confidence in the recommendation. Real range 0.5 to 0.99.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: is_anomaly
+        description: Converted from the source's 'True' / 'False' string.
+        data_tests:
+          - not_null
+
+      - name: anomaly_type
+        description: The kind of anomaly, or 'None'.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'None'
+                  - 'Fraud Alert'
+                  - 'Unusual Transaction Pattern'
+                  - 'Sudden Risk Change'
+                  - 'Credit Report Change'
+                  - 'Market Event Impact'
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - institution_id
+              - assessment_date
+
+  # ===========================================================================
+  - name: stg_risk_assess_performance_metrics
+    description: >
+      Pre-aggregated performance fact, one row per customer, institution and
+      product type. 2,948 rows. Numbers somebody else calculated, kept under
+      their source names so that stays obvious.
+    columns:
+
+      - name: performance_id
+        description: Surrogate key from the source.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: Foreign key to stg_risk_assess_customers.
+        data_tests:
+          - not_null
+
+      - name: institution_id
+        description: Foreign key to stg_risk_assess_financial_institutions.
+        data_tests:
+          - not_null
+
+      - name: avg_risk_score
+        description: Average risk score over the period. Real range 0.021 to 0.979.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: customer_value_category
+        description: Value tier derived from the composite score.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Low Value', 'Moderate Value', 'High Value', 'Premium Value']
+
+      - name: risk_trend
+        description: Direction of travel in risk.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - 'Strongly Improving'
+                  - 'Improving'
+                  - 'Stable'
+                  - 'Deteriorating'
+                  - 'Strongly Deteriorating'
+
+      - name: optimization_priority
+        description: Priority of the identified opportunity.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['High', 'Medium', 'Low']
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - institution_id
+              - product_type
+
+  # ===========================================================================
+  # THE PII TABLE
+  # ===========================================================================
+
+  - name: stg_loan
+    description: >
+      Consumer credit applications, 39,717 rows, 20 columns selected from 118.
+      Twelve personal-data columns are deliberately excluded. Read the
+      governance block at the top of the model file before changing anything
+      here.
+    columns:
+
+      - name: loan_id
+        description: Primary key, the source loan id.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: funded_amount
+        description: Amount funded in USD. Real range 500 to 35,000.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: term_months
+        description: Loan term in months, parsed from ' 36 months'.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [36, 60]
+
+      - name: interest_rate_pct
+        description: Interest rate, parsed from '7.90%'.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+                inclusive: false
+
+      - name: credit_grade
+        description: Credit grade A to G.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
+      - name: loan_status
+        description: Fully Paid, Current or Charged Off.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Fully Paid', 'Current', 'Charged Off']
+
+      - name: home_ownership
+        description: MORTGAGE, RENT, OWN, OTHER or NONE.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['MORTGAGE', 'RENT', 'OWN', 'OTHER', 'NONE']
+
+      - name: income_verification_status
+        description: Verified, Source Verified or Not Verified.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Verified', 'Source Verified', 'Not Verified']
+
+      - name: state_code
+        description: Two-letter US state code. 50 distinct values.
+        data_tests:
+          - not_null
+
+      - name: annual_income
+        description: Reported annual income in USD.
+        data_tests:
+          - not_null
+
+      - name: public_record_bankruptcies
+        description: >
+          Converted with try_cast because the source uses the string 'NA' for
+          missing. No not_null test: 'NA' correctly becomes NULL.
+
+      - name: revolving_utilisation_pct
+        description: Revolving utilisation, parsed from '28.30%'.
+
+      - name: issued_at
+        description: Issue month, parsed from 'Dec-11' with try_to_date.
+
+      - name: is_charged_off
+        description: True when loan_status is Charged Off. 5,627 of 39,717 rows.
+        data_tests:
+          - not_null
+
+  # ===========================================================================
+  # STRETCH
+  # ===========================================================================
+
+  - name: stg_fpr_records
+    description: >
+      Financial product recommendations and customer lifecycle. 751 rows.
+      Optional stretch material. `customer_name` and `customer_email` are
+      deliberately excluded.
+    columns:
+
+      - name: recommendation_id
+        description: Primary key, a UUID.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: Customer identifier.
+        data_tests:
+          - not_null
+
+      - name: recommendation_outcome
+        description: >
+          Accepted, Rejected or Open. Collapsed from the source's six status
+          values so every downstream conversion rate agrees.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Accepted', 'Rejected', 'Open']
+
+      - name: recommendation_score
+        description: Model confidence in the recommendation, 0 to 1.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: is_accepted
+        description: True when the recommendation was accepted or approved.
+        data_tests:
+          - not_null
+
+  - name: stg_predict_term_deposit
+    description: >
+      Term-deposit marketing campaign contacts. 45,211 rows, 11.7% base
+      conversion rate. Optional stretch material. The 999 age sentinel is
+      converted to NULL here.
+    columns:
+
+      - name: contact_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_age
+        description: >
+          Customer age, with the 999 sentinel converted to NULL. No not_null
+          test: unknown is a legitimate value and is_age_unknown records it.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 17
+                max_value: 100
+                inclusive: true
+
+      - name: is_age_unknown
+        description: True where the source used the 999 sentinel.
+        data_tests:
+          - not_null
+
+      - name: job_category
+        description: Occupation category.
+        data_tests:
+          - not_null
+
+      - name: has_subscribed
+        description: The campaign target. True for 5,289 of 45,211 contacts.
+        data_tests:
+          - not_null

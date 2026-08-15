@@ -1,0 +1,169 @@
+# RENAME THIS FILE to _<track_key>__marts.yml
+version: 2
+
+models:
+
+  # ===========================================================================
+  # ENFORCED CONTRACT.
+  #
+  # Every data_type below must exactly match the cast in the model SQL. Do that
+  # and a contract mismatch is impossible unless somebody genuinely changed the
+  # table's shape, which is the point.
+  #
+  # Keep the column order identical to the SELECT in the model.
+  # ===========================================================================
+  - name: <track_key>_<subject>
+    description: >
+      FILL ME. State the grain and the row count.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: <key_column>
+        data_type: varchar
+        description: Primary key.
+        constraints:
+          - type: not_null
+        data_tests:
+          - unique
+          - not_null
+        # Semantic layer: this column IS the primary entity.
+        entity:
+          type: primary
+          name: <entity_name>
+
+      - name: <date_column>
+        data_type: date
+        description: FILL ME.
+        # Semantic layer: the time dimension metrics aggregate over.
+        dimension:
+          type: time
+        granularity: day
+
+      - name: <dimension_column>
+        data_type: varchar
+        description: FILL ME.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['<value_1>', '<value_2>']
+        # Semantic layer: something you can group a metric by.
+        dimension:
+          type: categorical
+
+      - name: <measure_column>
+        data_type: number(18,2)
+        description: FILL ME.
+
+      - name: <flag_column>
+        data_type: boolean
+        description: FILL ME.
+
+  # ===========================================================================
+  # THE dbt SEMANTIC LAYER LIVES HERE TOO.
+  #
+  # Under the latest spec (required by the Fusion engine) semantic annotations
+  # are embedded in the model they describe, not in a separate
+  # models/semantic/<track>.yml. A model can only be configured in one YAML
+  # file, so the contract and the semantic layer share this block.
+  #
+  #   semantic_model:      turns the model into a semantic model
+  #   agg_time_dimension:  the default time grain metrics aggregate over
+  #   entity: / dimension: attach to the COLUMN, not to a separate list
+  #   metrics:             simple metrics replace the old `measures:` concept
+  #
+  # There is no `type_params:` in the new spec. Ratio metrics take numerator
+  # and denominator directly; derived metrics take `input_metrics:`.
+  #
+  # If you wrote a track against the old spec, run:
+  #     uvx dbt-autofix deprecations --semantic-layer
+  # ===========================================================================
+    semantic_model:
+      enabled: true
+      name: <track_key>_<subject>
+    agg_time_dimension: <date_column>
+    metrics:
+
+      # A simple metric IS the measure. No separate measures: list any more.
+      - name: total_<thing>
+        label: Total <thing>
+        description: FILL ME. Say what it excludes as well as what it includes.
+        type: simple
+        agg: sum
+        expr: <measure_column>
+
+      - name: <thing>_count
+        label: <Thing> count
+        description: FILL ME.
+        type: simple
+        agg: count
+        expr: <key_column>
+
+      - name: <flag>_count
+        label: <Flag> count
+        description: FILL ME.
+        type: simple
+        agg: sum
+        expr: case when <flag_column> then 1 else 0 end
+
+      # Ratio metrics reference other METRICS, and take the keys directly.
+      - name: <thing>_rate
+        label: <Thing> rate
+        description: Share of <...>, 0 to 1.
+        type: ratio
+        numerator: <flag>_count
+        denominator: <thing>_count
+
+      # Derived metrics stay correct at every level of aggregation, which an
+      # average of an average does not.
+      - name: <thing>_per_<other>
+        label: <Thing> per <other>
+        description: FILL ME.
+        type: derived
+        expr: total_<thing> / nullif(<thing>_count, 0)
+        input_metrics:
+          - name: total_<thing>
+          - name: <thing>_count
+
+      # Aggregations available: sum, average, min, max, count, count_distinct,
+      # median, percentile, sum_boolean. There is NO stddev, which is a real
+      # difference from the Snowflake Semantic View. Say so in a comment when
+      # it bites.
+
+      # An entity or dimension that needs an expression rather than a bare
+      # column goes in derived_semantics, not on the column:
+      #
+      # derived_semantics:
+      #   entities:
+      #     - name: <composite_entity>
+      #       type: primary
+      #       expr: <col_a> || '|' || cast(<col_b> as varchar)
+
+  # ===========================================================================
+  # The data-quality view has NO contract, on purpose. It is the model the lab
+  # edits live during the Fusion tour, and a contract would get in the way.
+  # ===========================================================================
+  - name: vw_<track_key>_data_quality
+    description: >
+      Data-quality scorecard. Scores completeness, validity and consistency out
+      of 100 and grades A to D.
+    columns:
+      - name: <group_column>
+        description: FILL ME.
+        data_tests:
+          - unique
+          - not_null
+      - name: data_quality_score
+        description: Simple average of the three dimension scores.
+      - name: data_quality_grade
+        description: A, B, C or D.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D']
+
+  - name: sv_<track_key>_<subject>
+    description: >
+      Snowflake Semantic View over <...>. Read by Cortex Analyst and Snowflake
+      Intelligence.

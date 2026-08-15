@@ -1,0 +1,452 @@
+version: 2
+
+models:
+
+  # ===========================================================================
+  # cpg_order_performance
+  #
+  # This model has an ENFORCED CONTRACT. dbt builds an empty table from the
+  # column list below, compares it against what the model actually produces,
+  # and refuses to build if they differ. That is the point: a mart with a
+  # contract cannot silently change shape underneath the people consuming it.
+  # ===========================================================================
+  - name: cpg_order_performance
+    description: >
+      Order-line fact for the consumer packaged goods track. One row per order line, carrying the commercial measures and the dimensions the trading team slices by. This is the governed table the semantic layer reads.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: record_id
+        data_type: varchar
+        description: Primary key. One row per order line.
+        constraints:
+          - type: not_null
+        data_tests:
+          - unique
+          - not_null
+
+        entity:
+          type: primary
+          name: cpg_order_line
+      - name: order_id
+        data_type: varchar
+        description: Order identifier.
+
+      - name: customer_id
+        data_type: varchar
+        description: Customer identifier.
+
+        entity:
+          type: foreign
+          name: customer
+      - name: product_id
+        data_type: varchar
+        description: Product identifier.
+
+        entity:
+          type: foreign
+          name: product
+      - name: order_date
+        data_type: date
+        description: Date the order was placed.
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+
+        dimension:
+          type: time
+        granularity: day
+      - name: order_status
+        data_type: varchar
+        description: Delivered, Shipped, Pending or Cancelled.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Delivered', 'Shipped', 'Pending', 'Cancelled']
+
+        dimension:
+          type: categorical
+      - name: customer_segment
+        data_type: varchar
+        description: High-Value, Medium-Value or Low-Value.
+
+        dimension:
+          type: categorical
+      - name: product_category
+        data_type: varchar
+        description: Top-level merchandising category.
+
+        dimension:
+          type: categorical
+      - name: product_subcategory
+        data_type: varchar
+        description: Merchandising subcategory.
+
+        dimension:
+          type: categorical
+      - name: order_value_band
+        data_type: varchar
+        description: Large, Medium or Small, based on order value.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Large', 'Medium', 'Small']
+
+        dimension:
+          type: categorical
+      - name: order_total
+        data_type: number(18,2)
+        description: Gross value of the order line in USD, including cancellations.
+        data_tests:
+          - not_null
+
+      - name: recognised_revenue
+        data_type: number(18,2)
+        description: >
+          Value of the order line in USD, zero for cancelled orders. Use this
+          rather than order_total when reporting revenue.
+
+      - name: product_price
+        data_type: number(18,2)
+        description: Unit price of the product in USD.
+
+      - name: implied_units
+        data_type: number(18,2)
+        description: Units implied by dividing order value by unit price.
+
+      # HOL_BUG_CPG_04
+      - name: customer_ltv
+        data_type: number(18,2)
+        description: Modelled customer lifetime value in USD.
+
+      - name: product_rating
+        data_type: number(9,4)
+        description: Average product rating, 1 to 5.
+
+      - name: product_review_count
+        data_type: number(38,0)
+        description: Number of reviews behind the rating.
+
+      - name: revenue_growth_rate
+        data_type: number(9,6)
+        description: Period-over-period revenue growth, as a ratio.
+
+      - name: customer_satisfaction_rate
+        data_type: number(9,6)
+        description: Customer satisfaction score, 0 to 1.
+
+      - name: is_fulfilled_order
+        data_type: boolean
+        description: True when the order shipped or was delivered.
+
+      - name: is_cancelled_order
+        data_type: boolean
+        description: True when the order was cancelled.
+    semantic_model:
+      enabled: true
+      name: cpg_order_performance
+    agg_time_dimension: order_date
+    metrics:
+      - name: total_order_value
+        label: Total order value
+        description: >
+          Sum of order value across all order lines, including cancellations. Use
+          total_recognised_revenue when you mean revenue.
+        type: simple
+        agg: sum
+        expr: order_total
+      - name: total_recognised_revenue
+        label: Total recognised revenue
+        description: Sum of order value excluding cancelled orders.
+        type: simple
+        agg: sum
+        expr: recognised_revenue
+      - name: order_count
+        label: Order count
+        description: Number of order lines.
+        type: simple
+        agg: count
+        expr: record_id
+      - name: fulfilled_order_count
+        label: Fulfilled order count
+        description: Number of order lines that shipped or were delivered.
+        type: simple
+        agg: sum
+        expr: case when is_fulfilled_order then 1 else 0 end
+      - name: cancelled_order_count
+        label: Cancelled order count
+        description: Number of order lines that were cancelled.
+        type: simple
+        agg: sum
+        expr: case when is_cancelled_order then 1 else 0 end
+      - name: average_customer_lifetime_value
+        label: Average customer lifetime value
+        description: Average modelled lifetime value of the customers on these orders.
+        type: simple
+        agg: average
+        expr: customer_lifetime_value
+      - name: average_product_rating
+        label: Average product rating
+        description: Average product rating across order lines, 1 to 5.
+        type: simple
+        agg: average
+        expr: product_rating
+      - name: average_revenue_growth_rate
+        label: Average revenue growth rate
+        description: Average period-over-period revenue growth, as a ratio.
+        type: simple
+        agg: average
+        expr: revenue_growth_rate
+      - name: average_order_value
+        label: Average order value
+        description: >
+          Total order value divided by the number of order lines. Defined as a
+          derived metric so it stays correct at every level of aggregation, which
+          an average of an average would not.
+        type: derived
+        expr: total_order_value / nullif(order_count, 0)
+        input_metrics:
+          - name: total_order_value
+          - name: order_count
+
+      - name: fulfilment_rate
+        label: Fulfilment rate
+        description: Share of order lines that shipped or were delivered, 0 to 1.
+        type: ratio
+        numerator: fulfilled_order_count
+        denominator: order_count
+      - name: cancellation_rate
+        label: Cancellation rate
+        description: Share of order lines that were cancelled, 0 to 1.
+        type: ratio
+        numerator: cancelled_order_count
+        denominator: order_count
+
+  # ===========================================================================
+  # cpg_product_inventory_health
+  # ===========================================================================
+  - name: cpg_product_inventory_health
+    description: >
+      Product-level inventory fact for the consumer packaged goods track. The supply planner's worklist: stockout risk, overstock risk and coverage. Contract enforced.
+    config:
+      contract:
+        enforced: true
+    columns:
+
+      - name: record_id
+        data_type: varchar
+        description: Primary key. One row per product occurrence.
+        constraints:
+          - type: not_null
+        data_tests:
+          - unique
+          - not_null
+
+        entity:
+          type: primary
+          name: cpg_inventory_line
+      - name: product_id
+        data_type: varchar
+        description: Product identifier.
+
+        entity:
+          type: foreign
+          name: product
+      - name: order_date
+        data_type: date
+        description: Date of the order the product appeared on.
+
+        dimension:
+          type: time
+        granularity: day
+      - name: product_category
+        data_type: varchar
+        description: Top-level merchandising category.
+
+        dimension:
+          type: categorical
+      - name: product_subcategory
+        data_type: varchar
+        description: Merchandising subcategory.
+
+        dimension:
+          type: categorical
+      - name: stockout_risk_level
+        data_type: varchar
+        description: High, Elevated or Low risk of running out of stock.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['High', 'Elevated', 'Low']
+
+        dimension:
+          type: categorical
+      - name: overstock_risk_level
+        data_type: varchar
+        description: High, Elevated or Low risk of holding excess stock.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['High', 'Elevated', 'Low']
+
+        dimension:
+          type: categorical
+      - name: inventory_level
+        data_type: number(38,0)
+        description: Units on hand for the product.
+
+      - name: demand_forecast
+        data_type: number(38,0)
+        description: Forecast units of demand for the next period.
+
+      - name: inventory_coverage_ratio
+        data_type: number(18,4)
+        description: Units on hand divided by forecast demand.
+
+      - name: inventory_turnover
+        data_type: number(9,4)
+        description: Inventory turns per period.
+
+      - name: stockout_rate
+        data_type: number(9,6)
+        description: Share of periods the product was out of stock, 0 to 1.
+
+      - name: overstock_rate
+        data_type: number(9,6)
+        description: Share of periods the product was overstocked, 0 to 1.
+
+      - name: product_price
+        data_type: number(18,2)
+        description: Unit price of the product in USD.
+
+      - name: price_elasticity
+        data_type: number(9,4)
+        description: Modelled price elasticity of demand.
+
+      - name: product_rating
+        data_type: number(9,4)
+        description: Average product rating, 1 to 5.
+
+      - name: product_review_count
+        data_type: number(38,0)
+        description: Number of reviews behind the rating.
+
+      - name: is_price_optimized
+        data_type: boolean
+        description: True when a pricing recommendation has been applied.
+
+      - name: needs_planner_review
+        data_type: boolean
+        description: True when stockout or overstock risk is High.
+    semantic_model:
+      enabled: true
+      name: cpg_product_inventory_health
+    agg_time_dimension: order_date
+    metrics:
+      - name: average_stockout_rate
+        label: Average stockout rate
+        description: Average share of periods products were out of stock, 0 to 1.
+        type: simple
+        agg: average
+        expr: stockout_rate
+      - name: average_overstock_rate
+        label: Average overstock rate
+        description: Average share of periods products were overstocked, 0 to 1.
+        type: simple
+        agg: average
+        expr: overstock_rate
+      - name: average_inventory_turnover
+        label: Average inventory turnover
+        description: Average inventory turns per period.
+        type: simple
+        agg: average
+        expr: inventory_turnover
+      - name: total_inventory_units
+        label: Total inventory units
+        description: Total units on hand across products.
+        type: simple
+        agg: sum
+        expr: inventory_level
+      - name: product_count
+        label: Product count
+        description: Number of product records.
+        type: simple
+        agg: count
+        expr: record_id
+      - name: products_needing_review
+        label: Products needing review
+        description: Products flagged as high stockout or high overstock risk.
+        type: simple
+        agg: sum
+        expr: case when needs_planner_review then 1 else 0 end
+      - name: share_of_products_needing_review
+        label: Share of products needing review
+        description: >
+          Products on the planner worklist as a share of all products, 0 to 1. This
+          is the metric a supply chain lead watches week to week.
+        type: ratio
+        numerator: products_needing_review
+        denominator: product_count
+
+  # ===========================================================================
+  # vw_cpg_data_quality
+  #
+  # No contract here on purpose. This is the model the lab edits live during
+  # the dbt Studio and Fusion tour, and a contract would get in the way.
+  # ===========================================================================
+  - name: vw_cpg_data_quality
+    description: >
+      Data-quality scorecard, one row per product category. Scores completeness,
+      validity and consistency out of 100 and grades the category A to D.
+    columns:
+
+      - name: product_category
+        description: Top-level merchandising category.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: total_rows
+        description: Rows in the category.
+
+      - name: completeness_score
+        description: Are the fields we need populated? 0 to 100.
+
+      - name: validity_score
+        description: Are values inside the range the business expects? 0 to 100.
+
+      - name: consistency_score
+        description: Do fields that should agree with each other agree? 0 to 100.
+
+      - name: data_quality_score
+        description: >
+          Simple average of the three dimension scores. The data team's agreed
+          floor for a production category is documented in the team handbook.
+        # HOL_BUG_CPG_03
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 95
+                inclusive: true
+
+      - name: data_quality_grade
+        description: A, B, C or D, derived from data_quality_score.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D']
+
+  # ===========================================================================
+  # sv_cpg_commercial_performance
+  #
+  # A Snowflake Semantic View. It has no columns in the ordinary sense, so it
+  # carries a description only. Cortex Analyst reads it directly.
+  # ===========================================================================
+  - name: sv_cpg_commercial_performance
+    description: >-
+      Snowflake Semantic View over the two consumer packaged goods marts. Facts,
+      dimensions and metrics defined natively in Snowflake and consumed by
+      Cortex Analyst and Snowflake Intelligence.
