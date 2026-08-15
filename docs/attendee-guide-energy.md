@@ -28,11 +28,13 @@ identically. Use it early rather than losing ten minutes.
 
 ---
 
-## Section 1: fork, pick, accounts (10 min)
+## Section 1: fork, pick, accounts (8 min)
 
 1. Fork `github.com/hicham-bab/snowflake-fivetran-dbt-hol` to your own account.
 2. You have picked energy. You will work only in `projects/energy`.
 3. Get your three accounts sorted: [account-setup.md](account-setup.md).
+4. Set up the dbt platform properly: **[../dbt/setup.md](../dbt/setup.md)**.
+   That page is the one setup you cannot skip, and it covers the field below.
 
 **Expected result:** a fork under your GitHub username, and a dbt platform
 account connected to Snowflake and to your fork, with the project subdirectory
@@ -92,6 +94,11 @@ instructor value.
 ---
 
 ## Section 3: point dbt at your data, first green build (15 min)
+
+**Prerequisite:** your dbt platform project is created, connected to Snowflake
+and to your fork, with the project subdirectory set to `projects/energy`.
+If any of that is not true, do **[../dbt/setup.md](../dbt/setup.md)** first. It
+takes 15 minutes and nothing below works without it.
 
 ### 3.1 Set your source schema
 
@@ -156,7 +163,7 @@ something the source does not have.
 
 ---
 
-## Section 4: dbt Studio and Fusion tour (10 min)
+## Section 4: dbt Studio and Fusion tour (8 min)
 
 Follow the instructor. Open `models/marts/vw_energy_data_quality.sql`. It is a
 chain of small CTEs, built that way so you can poke at it.
@@ -345,7 +352,7 @@ and reviewed by you.
 
 ---
 
-## Section 6: the semantic layer, defined twice (12 min)
+## Section 6: the semantic layer, defined twice (10 min)
 
 Open these side by side:
 
@@ -391,9 +398,117 @@ dbt build --select sv_energy_commodity_prices sv_energy_equipment_reliability
 
 ---
 
-## Section 7: ask your data in English (18 min)
+## Section 7: ship it to production (8 min)
 
-### 7.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
+### 7.1 A production job
+
+In the dbt platform, create a job:
+
+- Command: `dbt build`
+- **Enable "generate docs on run"**. Not optional: the next section
+  depends on it
+- Target the production environment
+
+Run it. **Expected result:** green, and a docs site with your DAG. Your DAG has
+a genuinely interesting shape: two independent branches that never meet.
+
+### 7.2 Run it again and watch dbt State
+
+Trigger the same job again without changing anything.
+
+**Expected result:** the second run is substantially shorter. dbt State compares
+against the previous run and skips models whose inputs have not changed.
+
+Worth a moment: your commodity price mart is roughly 133,000 rows built from a
+23-column unpivot and two window functions. Rebuilding it when nothing changed
+is pure waste. On a project with 2,000 models on an hourly schedule, that waste
+is the difference between a warehouse bill you can defend and one you cannot.
+
+**Make sure this job targets your production environment.** dbt Catalog, in
+the next section, only shows metadata from a deployment environment marked
+production or staging, and only after a job there has succeeded. If you skipped
+creating that environment, go back to
+[../dbt/setup.md](../dbt/setup.md) step 5 now; it takes two minutes.
+
+---
+
+## Section 8: dbt Catalog, the metadata the agent will use (8 min)
+
+Full walkthrough: [../dbt/catalog-tour.md](../dbt/catalog-tour.md). The short
+version is here.
+
+One fact makes this section worth your time:
+
+> **dbt Catalog and the dbt MCP Server read the same metadata, through the same
+> Discovery API.**
+
+Catalog is that metadata rendered for a human. The MCP Server hands it to an
+agent. So before you ask an AI anything, this is where you find out what it is
+actually going to know.
+
+Open **Catalog** from the top navigation.
+
+### 8.1 Lineage
+
+Click **Explore Lineage**. This is the DAG you built: two branches that never touch, because commodity prices and equipment
+maintenance share no key. You can see the reason for two semantic views rather
+than one.
+
+Try the **lenses** control and colour the graph by model layer, then by
+materialization. Your views and tables separate instantly.
+
+### 8.2 A model page
+
+Open `energy_maintenance_logs`.
+
+**Status bar:** last run, materialization, row count. Check the row count reads
+750.
+
+**General tab:** your description, local lineage, test results, and a
+**Details** section. Look at Details: it shows **contracted status**. Your marts
+show as contracted, because you enforced contracts on them in section 5. The
+contract is not just a build-time guard, it is a published fact anyone can look
+up.
+
+**Columns tab:** every column with its name, data type, description, tags and
+per-column test results.
+
+### 8.3 The point
+
+Find `is_reported_by_both_feeds` in the Columns tab and read its description:
+
+*"True when both source systems reported this event. In this data set that is
+every row, which is the finding the track is built around."*
+
+That sentence is the difference between an agent that knows the maintenance
+numbers were de-duplicated and one that finds the raw feeds and doubles every
+cost in the business.
+
+That description is not documentation hygiene. It is the agent's context.
+
+Now scroll for a column with a thin description or none. That is a gap the
+agent will feel too.
+
+**Expected result:** you can point at the exact metadata an AI will use, and
+say whether it is good enough. If you want a good AI experience on your data,
+the work is not in the prompt. It is in the descriptions, tests, contracts and
+metric definitions, which is to say it is in the pull request.
+
+> **Empty Catalog?** No successful job run in a production or staging
+> environment. **Columns tab empty?** The job did not run `dbt docs generate`.
+> Both are section 7 problems; fix and re-run.
+
+> **On plans:** column-level lineage and model performance are Enterprise+ only,
+> so a trial account may not show them. Everything above works on all plans.
+
+---
+
+## Section 9: ask your data in English (18 min)
+
+You just saw, in Catalog, exactly what metadata exists. Now watch an agent use
+it.
+
+### 9.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
 
 Go to `ai.snowflake.com` and open the `HOL_ENERGY_ANALYST` agent. It has both
 Semantic Views attached as separate tools and routes between them.
@@ -424,7 +539,7 @@ test on `wti_crude`, and `price_change_pct` divides by the absolute previous
 price so the percentage survives the sign change. Good data quality is not the
 same as making the data look tidy.
 
-### 7.2 dbt Semantic Layer, via the dbt MCP Server (guided)
+### 9.2 dbt Semantic Layer, via the dbt MCP Server (guided)
 
 The instructor will walk through this rather than everyone doing it live, and
 there is an honest reason why.
@@ -447,40 +562,7 @@ and doubles your costs.
 
 ---
 
-## Section 8: ship it (10 min)
-
-### 8.1 A production job
-
-In the dbt platform, create a job:
-
-- Command: `dbt build`
-- **Enable "generate docs on run"**
-- Target the production environment
-
-Run it. **Expected result:** green, and a docs site with your DAG. Your DAG has
-a genuinely interesting shape: two independent branches that never meet.
-
-### 8.2 Run it again and watch dbt State
-
-Trigger the same job again without changing anything.
-
-**Expected result:** the second run is substantially shorter. dbt State compares
-against the previous run and skips models whose inputs have not changed.
-
-Worth a moment: your commodity price mart is roughly 133,000 rows built from a
-23-column unpivot and two window functions. Rebuilding it when nothing changed
-is pure waste. On a project with 2,000 models on an hourly schedule, that waste
-is the difference between a warehouse bill you can defend and one you cannot.
-
-### 8.3 Open a pull request
-
-Commit in dbt Studio and open a pull request against your fork. **Do not
-merge.** The point is that everything you did today arrives as a reviewable
-diff, including the contract change.
-
----
-
-## Section 9: what you built (5 min)
+## Section 10: wrap up (5 min)
 
 Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
 
@@ -493,13 +575,25 @@ Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
 - Four bugs diagnosed and fixed by an agent you reviewed
 - The same metrics defined two ways, including one that could not be
 - Natural-language answers grounded in definitions somebody owns
-- A production job, dbt State, and a reviewable pull request
+- A production job with docs generation, and dbt State skipping unchanged work
+- A tour of dbt Catalog, so you know exactly what metadata an agent can see
+- A reviewable pull request
 
 **The thing worth remembering:** two systems reported the same 750 maintenance
 events, and unioning them would have doubled every cost in the business with no
 error, no warning and no visible symptom. The only defence was somebody looking
 at the data and writing down what they found. No amount of AI on top fixes a
 model that is quietly wrong underneath.
+
+---
+
+### Open a pull request
+
+Commit in dbt Studio and open a pull request against your fork. **Do not
+merge.** The point is that everything you did today arrives as a reviewable
+diff, including the contract change.
+
+---
 
 ### Next
 

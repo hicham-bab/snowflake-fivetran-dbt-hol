@@ -250,6 +250,8 @@ As an attendee would, from a clean state:
 - [ ] Apply the answer key → fully green
 - [ ] Full build under 60 seconds on an XS warehouse
 - [ ] Semantic View created; query it with `SEMANTIC_VIEW(...)` directly
+- [ ] Production job run, and your track appears in dbt Catalog with populated
+      Columns tabs (needs `dbt build` plus "generate docs on run")
 - [ ] Cortex Agent answers all your sample questions sensibly
 - [ ] Ask a deliberately bad question and check the agent handles it well
 
@@ -274,6 +276,12 @@ Insurance and healthcare would both support this.
 **Two sides to the story.** Demand and supply. Price and reliability. Snapshot
 and trend. Two marts that answer different halves of one question beat one mart
 that answers all of it.
+
+**Column descriptions that earn their place.** Section 8 of every guide has
+attendees read a description in dbt Catalog and ask whether an agent could act
+on it. Write at least a couple that would clearly change an AI's answer: CPG's
+`recognised_revenue` and financial services' `risk_weighted_exposure` are the
+models to copy.
 
 **Metrics a practitioner would actually use.** `unplanned_work_rate` is what a
 reliability engineer watches. `total_risk_weighted_exposure` is what a

@@ -6,6 +6,15 @@ You need three accounts. All three are created on the day, and all three have a
 fallback if provisioning does not work. Read the fallback column before you
 start panicking about a missing email.
 
+**This page covers signing up.** The step-by-step setup for each tool lives
+with that tool:
+
+| Tool | Full setup guide |
+|---|---|
+| Fivetran | [../fivetran/connector-setup.md](../fivetran/connector-setup.md) |
+| **dbt platform** | **[../dbt/setup.md](../dbt/setup.md)** |
+| Snowflake | admin-owned, see [../snowflake/GOTCHAS.md](../snowflake/GOTCHAS.md) |
+
 ---
 
 ## Placeholders the instructor fills in
@@ -57,7 +66,7 @@ Full walkthrough: [../fivetran/connector-setup.md](../fivetran/connector-setup.m
 | **Time to provision** | 3 to 5 minutes including email verification |
 | **You will need** | Your forked repo URL, and Snowflake connection details from the credentials card |
 
-**What to set up, in order:**
+**Full walkthrough: [../dbt/setup.md](../dbt/setup.md).** The summary:
 
 1. Create the account and verify your email.
 2. **Connect Snowflake.** Account identifier `{{SNOWFLAKE_ACCOUNT}}`, database
@@ -69,6 +78,9 @@ Full walkthrough: [../fivetran/connector-setup.md](../fivetran/connector-setup.m
    `projects/energy` or `projects/financial_services`. This is the step people
    miss, and the symptom is dbt reporting that it cannot find
    `dbt_project.yml`.
+5. **Create a production deployment environment.** You need it for the
+   production job and for dbt Catalog later. Two minutes now, or confusion at
+   1:29.
 
 **Fallback:** the instructor has a shared account with pre-created developer
 seats. Ask. There may also be a pre-configured workstation at the front of the
