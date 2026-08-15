@@ -20,6 +20,12 @@ metrics, dimensions, model metadata and lineage as MCP tools, so an AI agent
 **asks dbt for a governed metric** instead of writing its own SQL against
 whatever tables it can see.
 
+> **Want to see that metadata before you wire anything up?** Open dbt Catalog.
+> Its discovery tools and Catalog both read the **Discovery API**, so what
+> Catalog shows a human is what the MCP Server hands an agent. The guided tour
+> is [../dbt/catalog-tour.md](../dbt/catalog-tour.md), and it is section 8 of
+> every attendee guide for exactly this reason.
+
 The difference matters more than it sounds.
 
 | | Agent writes SQL against tables | Agent calls a metric through the semantic layer |

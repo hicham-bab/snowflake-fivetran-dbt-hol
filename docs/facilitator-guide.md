@@ -217,19 +217,28 @@ Matches [agenda.md](agenda.md). Print this.
 
 | Clock | Section | Min | Gate |
 |---|---|---|---|
-| 0:00 | Welcome, fork, pick, accounts | 10 | Everyone has forked and chosen |
-| 0:10 | Fivetran connector, start sync | 15 | Sync started, or fallback taken |
-| 0:25 | dbt setup, sources, staging | 15 | **Checkpoint 1 green** |
-| 0:40 | dbt Studio and Fusion tour | 10 | |
-| 0:50 | dbt Wizard, four bugs, one model | 25 | At least two bugs fixed |
-| 1:15 | Semantic layer, two ways | 12 | Both files opened side by side |
-| 1:27 | Ask your data | 18 | One question answered |
-| 1:45 | Production job, dbt State, PR | 10 | |
-| 1:55 | Wrap | 5 | |
+| 0:00 | Welcome, fork, pick, accounts | 8 | Everyone has forked and chosen |
+| 0:08 | Fivetran connector, start sync | 15 | Sync started, or fallback taken |
+| 0:23 | dbt platform setup, sources, staging | 15 | **Checkpoint 1 green** |
+| 0:38 | dbt Studio and Fusion tour | 8 | |
+| 0:46 | dbt Wizard, four bugs, one model | 25 | At least two bugs fixed |
+| 1:11 | Semantic layer, two ways | 10 | Both definitions opened |
+| 1:21 | Production job, docs, dbt State | 8 | **Job succeeded in production** |
+| 1:29 | dbt Catalog tour | 8 | Catalog is populated |
+| 1:37 | Ask your data | 18 | One question answered |
+| 1:55 | Wrap, pull request | 5 | |
 | 2:00 | End | | |
 
-**The only hard gate is checkpoint 1 at 0:50.** Everything after it degrades
-gracefully. Nothing before it does.
+**Two gates now.** Checkpoint 1 at 0:38, and a successful production job at
+1:29. The second is new: dbt Catalog only shows metadata from a deployment
+environment marked production or staging, after a job has succeeded there. If
+someone's job failed, their Catalog is empty and section 8 has nothing to show.
+
+Watch for two causes: no production environment created (send them to
+`dbt/setup.md` step 5) and "generate docs on run" not enabled, which leaves the
+Columns tab blank.
+
+Everything else degrades gracefully.
 
 ---
 

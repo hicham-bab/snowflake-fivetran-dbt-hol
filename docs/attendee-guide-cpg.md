@@ -20,12 +20,14 @@ identically. Use it early rather than losing ten minutes.
 
 ---
 
-## Section 1: fork, pick, accounts (10 min)
+## Section 1: fork, pick, accounts (8 min)
 
 1. Fork `github.com/hicham-bab/snowflake-fivetran-dbt-hol` to your own account.
 2. You have picked consumer packaged goods. You will work only in
    `projects/cpg`.
 3. Get your three accounts sorted: [account-setup.md](account-setup.md).
+4. Set up the dbt platform properly: **[../dbt/setup.md](../dbt/setup.md)**.
+   That page is the one setup you cannot skip, and it covers the field below.
 
 **Expected result:** a fork under your GitHub username, and a dbt platform
 account connected to Snowflake and to your fork, with the project subdirectory
@@ -90,6 +92,11 @@ instructor value.
 
 ## Section 3: point dbt at your data, first green build (15 min)
 
+**Prerequisite:** your dbt platform project is created, connected to Snowflake
+and to your fork, with the project subdirectory set to `projects/cpg`.
+If any of that is not true, do **[../dbt/setup.md](../dbt/setup.md)** first. It
+takes 15 minutes and nothing below works without it.
+
 ### 3.1 Set your source schema
 
 Open `projects/cpg/dbt_project.yml`. There is one block you need, near the top:
@@ -142,7 +149,7 @@ source Postgres column is `text`; it is a real `DATE` now.
 
 ---
 
-## Section 4: dbt Studio and Fusion tour (10 min)
+## Section 4: dbt Studio and Fusion tour (8 min)
 
 Follow the instructor. Open `models/marts/vw_cpg_data_quality.sql`. It is
 built as a chain of small CTEs specifically so you can poke at it.
@@ -313,7 +320,7 @@ from the existing files: that is why the project comments so heavily.
 
 ---
 
-## Section 6: the semantic layer, defined twice (12 min)
+## Section 6: the semantic layer, defined twice (10 min)
 
 Open these two files side by side:
 
@@ -359,9 +366,116 @@ dbt build --select sv_cpg_commercial_performance
 
 ---
 
-## Section 7: ask your data in English (18 min)
+## Section 7: ship it to production (8 min)
 
-### 7.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
+### 7.1 A production job
+
+In the dbt platform, create a job:
+
+- Command: `dbt build`
+- **Enable "generate docs on run"**. Not optional: the next section
+  depends on it
+- Target the production environment
+
+Run it. **Expected result:** green, and a docs site with your DAG.
+
+### 7.2 Run it again and watch dbt State
+
+Trigger the same job a second time without changing anything.
+
+**Expected result:** the second run is substantially shorter, because dbt State
+compares against the previous run and skips models whose inputs have not
+changed.
+
+That is the whole idea, and it is worth a moment. On a project this size it
+saves seconds. On a project with 2,000 models and an hourly schedule, it is the
+difference between a warehouse bill you can defend and one you cannot. You are
+not paying to rebuild things that did not change.
+
+**Make sure this job targets your production environment.** dbt Catalog, in
+the next section, only shows metadata from a deployment environment marked
+production or staging, and only after a job there has succeeded. If you skipped
+creating that environment, go back to
+[../dbt/setup.md](../dbt/setup.md) step 5 now; it takes two minutes.
+
+---
+
+## Section 8: dbt Catalog, the metadata the agent will use (8 min)
+
+Full walkthrough: [../dbt/catalog-tour.md](../dbt/catalog-tour.md). The short
+version is here.
+
+One fact makes this section worth your time:
+
+> **dbt Catalog and the dbt MCP Server read the same metadata, through the same
+> Discovery API.**
+
+Catalog is that metadata rendered for a human. The MCP Server hands it to an
+agent. So before you ask an AI anything, this is where you find out what it is
+actually going to know.
+
+Open **Catalog** from the top navigation.
+
+### 8.1 Lineage
+
+Click **Explore Lineage**. This is the DAG you built: one source fanning out into two parallel branches that rejoin at the semantic
+view.
+
+Try the **lenses** control and colour the graph by model layer, then by
+materialization. Your views and tables separate instantly.
+
+### 8.2 A model page
+
+Open `cpg_order_performance`.
+
+**Status bar:** last run, materialization, row count. Check the row count reads
+750.
+
+**General tab:** your description, local lineage, test results, and a
+**Details** section. Look at Details: it shows **contracted status**. Your marts
+show as contracted, because you enforced contracts on them in section 5. The
+contract is not just a build-time guard, it is a published fact anyone can look
+up.
+
+**Columns tab:** every column with its name, data type, description, tags and
+per-column test results.
+
+### 8.3 The point
+
+Find `recognised_revenue` in the Columns tab and read its description:
+
+*"Value of the order line in USD, zero for cancelled orders. Use this rather
+than order_total when reporting revenue."*
+
+That sentence is the difference between an agent that reports revenue correctly
+and one that overstates it by about a quarter, because 192 cancelled orders
+still carry a value.
+
+That description is not documentation hygiene. It is the agent's context.
+
+Now scroll for a column with a thin description or none. That is a gap the
+agent will feel too.
+
+**Expected result:** you can point at the exact metadata an AI will use, and
+say whether it is good enough. If you want a good AI experience on your data,
+the work is not in the prompt. It is in the descriptions, tests, contracts and
+metric definitions, which is to say it is in the pull request.
+
+> **Empty Catalog?** No successful job run in a production or staging
+> environment. **Columns tab empty?** The job did not run `dbt docs generate`.
+> Both are section 7 problems; fix and re-run.
+
+> **On plans:** column-level lineage and model performance are Enterprise+ only,
+> so a trial account may not show them. Everything above works on all plans.
+
+---
+
+## Section 9: ask your data in English (18 min)
+
+You just saw, in Catalog, exactly what metadata exists. Now watch an agent use
+it.
+
+### 9.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
 
 Go to `ai.snowflake.com` and open the `HOL_CPG_ANALYST` agent.
 
@@ -384,7 +498,7 @@ would have told it.
 **Expected result:** answers with the SQL the agent generated shown alongside.
 Read the SQL. It is querying your semantic view, not guessing at table names.
 
-### 7.2 dbt Semantic Layer, via the dbt MCP Server (guided)
+### 9.2 dbt Semantic Layer, via the dbt MCP Server (guided)
 
 The instructor will walk through this rather than everyone doing it live, and
 there is an honest reason why.
@@ -408,44 +522,7 @@ semantic layer, and it does not depend on which of the two you pick.
 
 ---
 
-## Section 8: ship it (10 min)
-
-### 8.1 A production job
-
-In the dbt platform, create a job:
-
-- Command: `dbt build`
-- **Enable "generate docs on run"**
-- Target the production environment
-
-Run it. **Expected result:** green, and a docs site with your DAG.
-
-### 8.2 Run it again and watch dbt State
-
-Trigger the same job a second time without changing anything.
-
-**Expected result:** the second run is substantially shorter, because dbt State
-compares against the previous run and skips models whose inputs have not
-changed.
-
-That is the whole idea, and it is worth a moment. On a project this size it
-saves seconds. On a project with 2,000 models and an hourly schedule, it is the
-difference between a warehouse bill you can defend and one you cannot. You are
-not paying to rebuild things that did not change.
-
-### 8.3 Open a pull request
-
-Commit your changes in dbt Studio and open a pull request against your fork.
-**Do not merge it.**
-
-The point is not shipping. It is that everything you did today (the model
-changes, the contract update, the new metric) arrives as a reviewable diff.
-Including the contract change, which is exactly the kind of thing you want a
-second pair of eyes on.
-
----
-
-## Section 9: what you built (5 min)
+## Section 10: wrap up (5 min)
 
 Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
 
@@ -456,12 +533,28 @@ Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
 - Four bugs diagnosed and fixed by an agent you reviewed
 - The same metrics defined two ways, and a clear view of when to use each
 - Natural-language answers grounded in definitions somebody owns
-- A production job, dbt State, and a reviewable pull request
+- A production job with docs generation, and dbt State skipping unchanged work
+- A tour of dbt Catalog, so you know exactly what metadata an agent can see
+- A reviewable pull request
 
 **The thing worth remembering:** `order_total` and `recognised_revenue` are not
 the same number, and nothing in the raw data tells you which one means revenue.
 Somebody has to decide, write it down, and put it somewhere the AI can read.
 That is what the last two hours were actually about.
+
+---
+
+### Open a pull request
+
+Commit your changes in dbt Studio and open a pull request against your fork.
+**Do not merge it.**
+
+The point is not shipping. It is that everything you did today (the model
+changes, the contract update, the new metric) arrives as a reviewable diff.
+Including the contract change, which is exactly the kind of thing you want a
+second pair of eyes on.
+
+---
 
 ### Next
 

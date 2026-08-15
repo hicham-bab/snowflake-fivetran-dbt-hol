@@ -31,12 +31,14 @@ identically. Use it early rather than losing ten minutes.
 
 ---
 
-## Section 1: fork, pick, accounts (10 min)
+## Section 1: fork, pick, accounts (8 min)
 
 1. Fork `github.com/hicham-bab/snowflake-fivetran-dbt-hol` to your own account.
 2. You have picked financial services. You will work only in
    `projects/financial_services`.
 3. Get your three accounts sorted: [account-setup.md](account-setup.md).
+4. Set up the dbt platform properly: **[../dbt/setup.md](../dbt/setup.md)**.
+   That page is the one setup you cannot skip, and it covers the field below.
 
 **Expected result:** a fork under your GitHub username, and a dbt platform
 account connected to Snowflake and to your fork, with the project subdirectory
@@ -103,6 +105,11 @@ need it, and that is fine.
 ---
 
 ## Section 3: point dbt at your data, first green build (15 min)
+
+**Prerequisite:** your dbt platform project is created, connected to Snowflake
+and to your fork, with the project subdirectory set to `projects/financial_services`.
+If any of that is not true, do **[../dbt/setup.md](../dbt/setup.md)** first. It
+takes 15 minutes and nothing below works without it.
 
 ### 3.1 Set your source schema
 
@@ -189,7 +196,7 @@ are about to see what happens when you get that wrong.
 
 ---
 
-## Section 4: dbt Studio and Fusion tour (10 min)
+## Section 4: dbt Studio and Fusion tour (8 min)
 
 Follow the instructor. Open `models/marts/vw_fs_data_quality.sql`. Yours scores
 four domains rather than two.
@@ -350,7 +357,7 @@ And a metric:
 
 ---
 
-## Section 6: the semantic layer, defined twice (12 min)
+## Section 6: the semantic layer, defined twice (10 min)
 
 Open these side by side:
 
@@ -396,9 +403,119 @@ dbt build --select sv_fs_credit_risk
 
 ---
 
-## Section 7: ask your data in English (18 min)
+## Section 7: ship it to production (8 min)
 
-### 7.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
+### 7.1 A production job
+
+In the dbt platform, create a job:
+
+- Command: `dbt build`
+- **Enable "generate docs on run"**. Not optional: the next section
+  depends on it
+- Target the production environment
+
+Run it. **Expected result:** green, and a docs site with your DAG. Yours is the
+most interesting of the three: the five-table star converging into one
+intermediate model and fanning back out.
+
+### 7.2 Run it again and watch dbt State
+
+Trigger the same job again without changing anything.
+
+**Expected result:** the second run is substantially shorter. dbt State skips
+models whose inputs have not changed.
+
+Yours is the track where this matters most: `fs_monthly_risk_assessment` is
+106,128 rows and rebuilds from a four-way join. Rebuilding it when nothing
+changed is pure waste. On a real credit-risk platform with hourly refreshes,
+that is the difference between a warehouse bill you can defend and one you
+cannot.
+
+**Make sure this job targets your production environment.** dbt Catalog, in
+the next section, only shows metadata from a deployment environment marked
+production or staging, and only after a job there has succeeded. If you skipped
+creating that environment, go back to
+[../dbt/setup.md](../dbt/setup.md) step 5 now; it takes two minutes.
+
+---
+
+## Section 8: dbt Catalog, the metadata the agent will use (8 min)
+
+Full walkthrough: [../dbt/catalog-tour.md](../dbt/catalog-tour.md). The short
+version is here.
+
+One fact makes this section worth your time:
+
+> **dbt Catalog and the dbt MCP Server read the same metadata, through the same
+> Discovery API.**
+
+Catalog is that metadata rendered for a human. The MCP Server hands it to an
+agent. So before you ask an AI anything, this is where you find out what it is
+actually going to know.
+
+Open **Catalog** from the top navigation.
+
+### 8.1 Lineage
+
+Click **Explore Lineage**. This is the DAG you built: five sources converging into `int_fs_risk_relationships` and fanning back out.
+The convergence point is the star join.
+
+Try the **lenses** control and colour the graph by model layer, then by
+materialization. Your views and tables separate instantly.
+
+### 8.2 A model page
+
+Open `fs_risk_relationship_summary`.
+
+**Status bar:** last run, materialization, row count. Check the row count reads
+2,948.
+
+**General tab:** your description, local lineage, test results, and a
+**Details** section. Look at Details: it shows **contracted status**. Your marts
+show as contracted, because you enforced contracts on them in section 5. The
+contract is not just a build-time guard, it is a published fact anyone can look
+up.
+
+**Columns tab:** every column with its name, data type, description, tags and
+per-column test results.
+
+### 8.3 The point
+
+Find `risk_weighted_exposure` in the Columns tab and read its description:
+
+*"Exposure multiplied by the base risk score. The number a risk officer reaches
+for first: how much money is at stake, weighted by how likely it is to go
+wrong."*
+
+That sentence is the difference between an agent that answers "how much is at
+risk" with risk-weighted exposure and one that answers with the raw amount
+lent. Those are very different numbers and only one of them is the question.
+
+That description is not documentation hygiene. It is the agent's context.
+
+Now scroll for a column with a thin description or none. That is a gap the
+agent will feel too.
+
+**Expected result:** you can point at the exact metadata an AI will use, and
+say whether it is good enough. If you want a good AI experience on your data,
+the work is not in the prompt. It is in the descriptions, tests, contracts and
+metric definitions, which is to say it is in the pull request.
+
+> **Empty Catalog?** No successful job run in a production or staging
+> environment. **Columns tab empty?** The job did not run `dbt docs generate`.
+> Both are section 7 problems; fix and re-run.
+
+> **On plans:** column-level lineage and model performance are Enterprise+ only,
+> so a trial account may not show them. Everything above works on all plans.
+
+---
+
+## Section 9: ask your data in English (18 min)
+
+You just saw, in Catalog, exactly what metadata exists. Now watch an agent use
+it.
+
+### 9.1 Snowflake Semantic View, via Cortex Analyst (hands-on)
 
 Go to `ai.snowflake.com` and open the `HOL_FS_ANALYST` agent.
 
@@ -415,7 +532,7 @@ Go to `ai.snowflake.com` and open the `HOL_FS_ANALYST` agent.
 Question 2 is the good one technically: it spans both logical tables and only
 works because the Semantic View declares the relationship between them.
 
-### 7.2 Now try to break it
+### 9.2 Now try to break it
 
 **Ask the agent: "What is the social security number of customer CUST-C001?"**
 
@@ -431,7 +548,7 @@ ever saw the data.
 Try a couple more: ask for a borrower's employer, or for customers in a
 specific postcode. Same outcome, same reason.
 
-### 7.3 dbt Semantic Layer, via the dbt MCP Server (guided)
+### 9.3 dbt Semantic Layer, via the dbt MCP Server (guided)
 
 The instructor will walk through this rather than everyone doing it live, and
 there is an honest reason why.
@@ -455,45 +572,7 @@ conversation.
 
 ---
 
-## Section 8: ship it (10 min)
-
-### 8.1 A production job
-
-In the dbt platform, create a job:
-
-- Command: `dbt build`
-- **Enable "generate docs on run"**
-- Target the production environment
-
-Run it. **Expected result:** green, and a docs site with your DAG. Yours is the
-most interesting of the three: the five-table star converging into one
-intermediate model and fanning back out.
-
-### 8.2 Run it again and watch dbt State
-
-Trigger the same job again without changing anything.
-
-**Expected result:** the second run is substantially shorter. dbt State skips
-models whose inputs have not changed.
-
-Yours is the track where this matters most: `fs_monthly_risk_assessment` is
-106,128 rows and rebuilds from a four-way join. Rebuilding it when nothing
-changed is pure waste. On a real credit-risk platform with hourly refreshes,
-that is the difference between a warehouse bill you can defend and one you
-cannot.
-
-### 8.3 Open a pull request
-
-Commit in dbt Studio and open a pull request against your fork. **Do not
-merge.**
-
-Look at your diff and notice what is in it: two contract changes. In a bank,
-that is the artefact that matters. Somebody can see, in a reviewable diff, that
-the shape of a governed table changed and that no personal data was added back.
-
----
-
-## Section 9: what you built (5 min)
+## Section 10: wrap up (5 min)
 
 Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
 
@@ -510,13 +589,28 @@ Raw PostgreSQL to a governed, AI-queryable semantic layer in under two hours:
   number
 - An agent that cannot leak a social security number because the column does
   not exist
-- A production job, dbt State, and a reviewable pull request
+- A production job with docs generation, and dbt State skipping unchanged work
+- A tour of dbt Catalog, so you know exactly what metadata an agent can see
+- A reviewable pull request
 
 **The thing worth remembering:** you asked an AI agent for a customer's social
 security number and it could not answer. Not because it was well behaved, but
 because four layers upstream somebody wrote an explicit column list and put a
 contract around it. Governance that depends on the model behaving is not
 governance. Governance that depends on the column not existing is.
+
+---
+
+### Open a pull request
+
+Commit in dbt Studio and open a pull request against your fork. **Do not
+merge.**
+
+Look at your diff and notice what is in it: two contract changes. In a bank,
+that is the artefact that matters. Somebody can see, in a reviewable diff, that
+the shape of a governed table changed and that no personal data was added back.
+
+---
 
 ### Next
 

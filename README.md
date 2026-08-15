@@ -59,7 +59,18 @@ trip you up.
 > under the repository settings. You can change it later if you pick the wrong
 > one.
 
-### 3. Open your guide and go
+### 3. Set up your three tools
+
+One folder per tool. Do them in this order; the dbt one is the only one without
+a fallback.
+
+| Tool | Setup page | Time |
+|---|---|---|
+| Fivetran | [fivetran/connector-setup.md](fivetran/connector-setup.md) | 15 min, mostly waiting |
+| **dbt platform** | **[dbt/setup.md](dbt/setup.md)** | **15 min. Cannot be skipped** |
+| Snowflake | [docs/account-setup.md](docs/account-setup.md) | Usually supplied by the instructor |
+
+### 4. Open your guide and go
 
 | Track | Your guide |
 |---|---|
@@ -80,9 +91,11 @@ each one also tells you how to skip ahead without breaking anything.
 | 2 | Build a Fivetran connector and watch raw tables land in Snowflake | 20 |
 | 3 | Point dbt at your data, tour dbt Studio and Fusion | 20 |
 | 4 | Build with dbt Wizard, and fix four deliberately broken things | 25 |
-| 5 | Define your metrics twice: Snowflake Semantic View and dbt Semantic Layer | 15 |
-| 6 | Ask questions of your data in plain English | 20 |
-| 7 | Ship it: a production job, dbt State, and a pull request | 10 |
+| 5 | Define your metrics twice: Snowflake Semantic View and dbt Semantic Layer | 10 |
+| 6 | Ship it: a production job with docs, and dbt State | 8 |
+| 7 | Tour dbt Catalog: see exactly what metadata an AI agent will use | 8 |
+| 8 | Ask questions of your data in plain English | 18 |
+| 9 | Wrap up and open a pull request | 5 |
 
 Full run of show: [docs/agenda.md](docs/agenda.md).
 
@@ -114,6 +127,13 @@ the agent writes, you stay accountable. Four things in your track are
 deliberately broken, and you will fix them by talking to the agent rather than
 by reading the answer key.
 
+**Good AI answers come from the pull request, not the prompt.** Before you ask
+an AI anything, you will tour dbt Catalog and see the exact metadata it is
+about to read: your descriptions, your data types, your test results, your
+contracts. Catalog and the dbt MCP Server pull from the same Discovery API, so
+what you see there is what the agent gets. It reframes documentation from
+hygiene into the thing that decides whether the answer is right.
+
 **Meaning gets defined twice, on purpose.** The same metrics exist in two
 places: a Snowflake Semantic View, native to Snowflake and read by Cortex
 Analyst, and dbt Semantic Layer specs, living in this repo and read through the
@@ -136,9 +156,13 @@ guides are explicit about when you would reach for each.
 │   ├── facilitator-guide.md     instructor runbook
 │   ├── answer-key.md            facilitator only: every seeded bug and its fix
 │   └── adding-an-industry.md    how to add a fourth track
-├── fivetran/
+├── fivetran/                    SETUP: ingest
 │   └── connector-setup.md       PostgreSQL to Snowflake, step by step
-├── snowflake/                   owned by the Snowflake team
+├── dbt/                         SETUP: transform and govern
+│   ├── setup.md                 dbt platform: connection, repo, subdirectory,
+│   │                            environments. The one you cannot skip
+│   └── catalog-tour.md          dbt Catalog: the metadata an AI agent can see
+├── snowflake/                   SETUP: store. Owned by the Snowflake team
 │   ├── GOTCHAS.md               the integration traps that break Fivetran-to-dbt labs
 │   ├── reference_setup.sql      minimal database, warehouse, roles and grants
 │   └── cortex_semantic/         reference Semantic View DDL and agent setup
