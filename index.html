@@ -46,32 +46,66 @@
   .lead{color:var(--muted); margin:0 0 26px; max-width:760px}
 
   /* architecture flow */
-  .flow{display:grid; grid-template-columns:repeat(6,1fr); gap:26px 0; align-items:stretch}
-  @media(max-width:1000px){.flow{grid-template-columns:repeat(3,1fr); gap:34px 0}}
-  @media(max-width:620px){.flow{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:400px){.flow{grid-template-columns:1fr}}
-  .node{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:16px 14px; cursor:pointer; transition:.18s; position:relative;
-    display:flex; flex-direction:column; justify-content:flex-start}
-  /* chevron between nodes, drawn in the gutter so it can never orphan */
-  .node:not(:last-child)::after{content:"›"; position:absolute; right:-13px; top:50%;
-    transform:translateY(-50%); font-size:26px; line-height:1; color:var(--faint); z-index:2}
+  .flow{display:grid; grid-template-columns:repeat(4,1fr); gap:30px 30px; align-items:stretch}
+  .n1{grid-area:1/1} .n2{grid-area:1/2} .n3{grid-area:1/3} .n4{grid-area:1/4}
+  .subs{grid-area:2/3}
+  /* Tablet: keep the four-stage left-to-right reading, just tighter.
+     A two-column grid would put the nested boxes beside Snowflake
+     instead of under dbt platform, which reads as the wrong hierarchy. */
   @media(max-width:1000px){
-    .node:nth-child(3n)::after{content:none}
-    .node:last-child::after{content:none}
+    .flow{gap:22px 20px}
+    .node{padding:16px 14px 14px}
+    .node h3{font-size:14px}
+    .node p{font-size:11.5px; padding-right:18px}
+    .subs{padding-left:18px}
+    .subnode h4{font-size:12.5px}
+    .subnode p{font-size:11px}
   }
-  @media(max-width:620px){
-    .node:nth-child(3n)::after{content:"›"}
-    .node:nth-child(2n)::after{content:none}
+  /* Below tablet: stack. Source order is Fivetran, Snowflake, dbt platform,
+     its two capabilities, then Snowflake Intelligence, so the nesting holds. */
+  @media(max-width:700px){
+    .flow{grid-template-columns:1fr; gap:16px}
+    .n1,.n2,.n3,.n4,.subs{grid-area:auto}
+    .node{padding:18px 16px 16px}
+    .node h3{font-size:15px}
+    .node p{font-size:12.5px}
   }
-  @media(max-width:400px){.node::after{content:none !important}}
+
+  .node{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 18px 18px; cursor:pointer; transition:.18s; position:relative}
   .node:hover{transform:translateY(-3px); border-color:var(--nc,#3a4552)}
+  .node:hover .plus{background:var(--nc); color:#0d1117; border-color:var(--nc)}
   .node.active{border-color:var(--nc); box-shadow:0 0 0 1px var(--nc), 0 10px 30px rgba(0,0,0,.35)}
-  .node .dot{width:9px;height:9px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:7px}
-  .node h3{margin:0 0 4px; font-size:14.5px; letter-spacing:-.01em}
-  .node p{margin:0; font-size:12px; color:var(--muted); line-height:1.45}
-  .node .more{margin-top:auto; padding-top:10px; font-size:11px; color:var(--nc); opacity:.85;
-    letter-spacing:.03em; text-transform:uppercase}
+  .node.active .plus{background:var(--nc); color:#0d1117; border-color:var(--nc); transform:rotate(45deg)}
+  .node .dot{width:9px;height:9px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:8px}
+  .node h3{margin:0 0 5px; font-size:15.5px; letter-spacing:-.01em}
+  .node p{margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; padding-right:22px}
+  .plus{position:absolute; top:14px; right:14px; width:20px; height:20px; border-radius:6px;
+    border:1px solid var(--border); color:var(--faint); font-size:13px; line-height:18px;
+    text-align:center; transition:.18s}
+
+  /* chevrons between the four main stages, desktop only */
+  .n1::after,.n2::after,.n3::after{content:"\203A"; position:absolute; right:-19px; top:50%;
+    transform:translateY(-50%); font-size:24px; line-height:1; color:var(--faint)}
+  @media(max-width:1000px){.n1::after,.n2::after,.n3::after{right:-14px; font-size:20px}}
+  @media(max-width:700px){.n1::after,.n2::after,.n3::after{content:none}}
+
+  /* the two dbt platform capabilities, nested under it */
+  .subs{position:relative; padding-left:22px; display:flex; flex-direction:column; gap:10px}
+  .subs::before{content:""; position:absolute; left:8px; top:-30px; bottom:22px; width:2px;
+    background:linear-gradient(180deg, var(--dbt), rgba(255,105,74,.18))}
+  .subs-label{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--faint); margin-bottom:2px}
+  .subnode{position:relative; background:var(--panel2); border:1px solid var(--border);
+    border-left:3px solid var(--nc); border-radius:10px; padding:11px 13px; cursor:pointer; transition:.16s}
+  .subnode::before{content:""; position:absolute; left:-14px; top:20px; width:14px; height:2px;
+    background:rgba(255,105,74,.45)}
+  .subnode:hover{background:#212a38; transform:translateX(2px)}
+  .subnode.active{border-color:var(--nc); border-left-color:var(--nc);
+    box-shadow:0 0 0 1px var(--nc), 0 8px 22px rgba(0,0,0,.35)}
+  .subnode .dot{width:7px;height:7px;border-radius:50%;background:var(--nc);display:inline-block;margin-right:7px}
+  .subnode h4{margin:0 0 2px; font-size:13.5px; font-weight:600}
+  .subnode p{margin:0; font-size:11.5px; color:var(--muted)}
   .node-detail{margin-top:18px; background:var(--panel2); border:1px solid var(--border);
     border-left:4px solid var(--nc,#3a4552); border-radius:12px; padding:18px 20px; display:none}
   .node-detail.show{display:block; animation:fade .25s ease}
@@ -196,25 +230,28 @@
 <!-- ARCHITECTURE -->
 <section class="wrap" id="architecture">
   <h2>The architecture</h2>
-  <p class="lead">One loop, end to end. Click any layer to see what it does and what you'll actually see happen.</p>
+  <p class="lead">Four stages, end to end. The semantic layer and dbt Catalog sit inside dbt platform, not beside it. Click any box for detail.</p>
   <div class="flow" id="flow">
-    <div class="node" data-k="fivetran" style="--nc:#2f80ff">
-      <h3><span class="dot"></span>Fivetran</h3><p>Ingest: land raw data</p><span class="more">Click for detail</span>
+    <div class="node n1" data-k="fivetran" style="--nc:#2f80ff">
+      <h3><span class="dot"></span>Fivetran</h3><p>Ingest: land raw data</p><span class="plus">+</span>
     </div>
-    <div class="node" data-k="snowflake" style="--nc:#29b5e8">
-      <h3><span class="dot"></span>Snowflake</h3><p>Store: raw tables</p><span class="more">Click for detail</span>
+    <div class="node n2" data-k="snowflake" style="--nc:#29b5e8">
+      <h3><span class="dot"></span>Snowflake</h3><p>Store: raw tables</p><span class="plus">+</span>
     </div>
-    <div class="node" data-k="dbt" style="--nc:#ff694a">
-      <h3><span class="dot"></span>dbt platform</h3><p>Transform &amp; govern</p><span class="more">Click for detail</span>
+    <div class="node n3" data-k="dbt" style="--nc:#ff694a">
+      <h3><span class="dot"></span>dbt platform</h3><p>Transform, govern and describe</p><span class="plus">+</span>
     </div>
-    <div class="node" data-k="sem" style="--nc:#e3b341">
-      <h3><span class="dot"></span>Semantic layer</h3><p>Define meaning</p><span class="more">Click for detail</span>
+    <div class="subs">
+      <div class="subs-label">inside dbt platform</div>
+      <div class="subnode" data-k="sem" style="--nc:#e3b341">
+        <h4><span class="dot"></span>Semantic layer</h4><p>Define meaning</p>
+      </div>
+      <div class="subnode" data-k="catalog" style="--nc:#3fb950">
+        <h4><span class="dot"></span>dbt Catalog</h4><p>See what the agent sees</p>
+      </div>
     </div>
-    <div class="node" data-k="catalog" style="--nc:#3fb950">
-      <h3><span class="dot"></span>dbt Catalog</h3><p>See what the agent sees</p><span class="more">Click for detail</span>
-    </div>
-    <div class="node" data-k="ai" style="--nc:#7c5cff">
-      <h3><span class="dot"></span>Snowflake Intelligence</h3><p>Ask in English</p><span class="more">Click for detail</span>
+    <div class="node n4" data-k="ai" style="--nc:#7c5cff">
+      <h3><span class="dot"></span>Snowflake Intelligence</h3><p>Ask in English</p><span class="plus">+</span>
     </div>
   </div>
   <div class="node-detail" id="ndetail"></div>
@@ -318,7 +355,7 @@ const details = {
   catalog:{c:"#3fb950",h:"dbt Catalog: the metadata the agent will use",b:"<b>dbt Catalog and the dbt MCP Server read the same metadata, through the same Discovery API.</b> Catalog renders it for a human; the MCP Server hands it to an agent. So this is a preview of the agent's context window: your column descriptions, data types, test results, lineage and <b>contracted status</b>. Needs a successful production job with <code>dbt build</code> plus <code>dbt docs generate</code>, or it's empty."},
   ai:{c:"#7c5cff",h:"Snowflake Intelligence: ask in English",b:"Ask questions of governed metrics in plain English through Snowflake Intelligence and Cortex Analyst, and get one consistent answer. In financial services, ask for a customer's SSN and it can't answer, because the column was never selected. That's the governance beat."}
 };
-const nodes=document.querySelectorAll('.node'), nd=document.getElementById('ndetail');
+const nodes=document.querySelectorAll('.node,.subnode'), nd=document.getElementById('ndetail');
 nodes.forEach(n=>n.addEventListener('click',()=>{
   const k=n.dataset.k, was=n.classList.contains('active');
   nodes.forEach(x=>x.classList.remove('active'));
