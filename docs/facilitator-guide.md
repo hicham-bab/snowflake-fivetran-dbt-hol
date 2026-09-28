@@ -1,7 +1,10 @@
 # Facilitator guide
 
-Everything you need to run this in a room of about 30 people creating accounts
-on the day.
+Everything you need to run this in a room of about 30 people. **The default
+is now that nobody creates an account on the day**: you pre-provision
+seats before the room opens, and attendees log in. Self-service signup on the
+day is the fallback, for anyone who didn't register in time or whose seat
+provisioning didn't take.
 
 Companion documents: [agenda.md](agenda.md) for timings,
 [answer-key.md](answer-key.md) for the seeded bugs, and
@@ -25,9 +28,76 @@ prep time there instead.
 
 ---
 
+## Why the default changed
+
+Feedback from a prior run of this lab: setup took anywhere from 30 minutes to
+over two hours, average over an hour, in a two-hour room. Some attendees never
+got past it. The customers who did get through it liked the platform and were
+surprised by the functionality; the product landed, the on-ramp didn't. The
+takeaway wasn't "simplify the steps," it was "remove the steps": the only
+thing an attendee should have to do is log in to an account you already gave
+them.
+
+That is now the default this guide describes. Self-service (fork, create a
+trial, connect Snowflake, connect the fork, set the subdirectory) still exists
+and still works (it's what `dbt/setup.md` and `docs/account-setup.md`
+document in full), but treat it as the fallback for stragglers, not the
+on-ramp for the room.
+
+## Pre-provisioning attendee seats (do this instead of day-of signup)
+
+**Capture GitHub usernames at registration.** This is what makes
+pre-provisioning possible at all; without it you can't pre-connect a fork to
+a project before the day. If registration didn't ask for it, send a follow-up
+before the dry run; anyone who doesn't answer in time goes on the self-service
+path automatically, which is fine, it's still fully supported.
+
+For each registered attendee, before the day:
+
+- [ ] Fork the repo under an org you control, or have the attendee fork it
+      themselves as their one and only pre-work item, and record the fork URL
+      against their registration
+- [ ] Assign them a track (see "Steering people" below if you want to do this
+      by self-reported comfort level instead of at random)
+- [ ] Create their dbt platform seat, or invite them as a user to a
+      pre-created project for their track
+- [ ] Connect that project to their fork, with the project subdirectory
+      already set to their track's folder (this single step is what removes
+      "the single most common setup mistake in the lab" entirely, rather than
+      just documenting it well)
+- [ ] Connect Snowflake on the project, with development credentials that
+      resolve to a schema unique to that attendee (their registration email or
+      GitHub username is a safer key than first name, which collides)
+- [ ] Create the production deployment environment on the project
+- [ ] Send the login (not signup) URL and credentials on the lab credentials
+      card
+
+**Two open questions to verify against your dbt platform tier before you
+commit to this as the default, not after:**
+
+- Whether your workshop account tier lets you pre-invite N users to N
+  projects in bulk, or whether this is a manual per-attendee click-through;
+  if it's manual, budget facilitator prep time proportional to headcount, and
+  say so in the "days before" schedule below
+- Whether personal dev credentials can use Snowflake SSO/OAuth instead of
+  key-pair or password auth for pre-provisioned seats. If they can, that
+  removes the single fussiest step in the old flow (pasting a full private
+  key correctly) as well as the account-identifier-format trap. If they
+  can't on your tier, pre-provisioning still removes five of the six manual
+  steps; just budget for this one remaining connection nuance
+
+`TODO: verify` against your actual dbt platform account before the first
+pre-provisioned run, the same way the Snowflake-CoWork wiring below got
+verified before it went from walkthrough to hands-on.
+
+---
+
 ## Pre-flight
 
 ### Two weeks before
+
+- [ ] Attendee GitHub usernames captured at registration, or a deadline set
+      to collect them before the dry run
 
 - [ ] Snowflake team has [../snowflake/GOTCHAS.md](../snowflake/GOTCHAS.md) and
       [../snowflake/reference_setup.sql](../snowflake/reference_setup.sql)
@@ -211,11 +281,14 @@ far better as a live show of hands than as a slide.
 
 ## Timing table
 
-Matches [agenda.md](agenda.md). Print this.
+Matches [agenda.md](agenda.md). Print this. Clock marks assume the
+self-service 8-minute welcome; if you're running pre-provisioned (the
+default), section 1 is closer to 3 minutes and the saved time goes to the
+end-of-day buffer, not any other section.
 
 | Clock | Section | Min | Gate |
 |---|---|---|---|
-| 0:00 | Welcome, fork, pick, accounts | 8 | Everyone has forked and chosen |
+| 0:00 | Welcome, log in (or fork, self-service), pick | 8 | Everyone logged in (or forked) and chosen |
 | 0:08 | dbt platform setup, seed data, sources, staging | 18 | **Checkpoint 1 green** |
 | 0:26 | dbt Studio and Fusion tour | 8 | |
 | 0:34 | dbt Wizard, four bugs, one model | 25 | At least two bugs fixed |
@@ -245,9 +318,11 @@ the end to absorb whatever slipped.
 
 ## Things to say out loud
 
-**At 0:05, the fork.** *"If you break something you can't undo, just re-fork.
-Your seed data is committed, so a fresh fork is a fresh start — no account,
-no sync, nothing to wait on."*
+**At 0:05, the reset.** Pre-provisioned: *"If you break something you can't
+undo, tell me and I'll reset your project. Your seed data is committed, so
+that's a fresh start, no account or sync to wait on."* Self-service: *"just
+re-fork; same reason, your seed data is committed, so a fresh fork is a fresh
+start."*
 
 **At 0:15, why there's no Fivetran/Openflow step.** *"In production this
 pipeline would land raw data with Openflow, continuously. We're skipping

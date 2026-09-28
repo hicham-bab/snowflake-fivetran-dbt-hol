@@ -1,13 +1,17 @@
 # Account setup
 
-**Time: 10 minutes, done in the first block of the lab.**
+**Time: 1-2 minutes, if you registered for this workshop. 10-20 minutes if
+you're running it solo.**
 
-You need two accounts. Both are created on the day, and both have a fallback
-if provisioning does not work. Read the fallback column before you start
-panicking about a missing email.
+The default now is that you don't create anything on the day. Everything
+(your dbt platform seat, its Snowflake connection, your project's repo and
+subdirectory) is provisioned by the facilitator before the room opens, keyed
+off the registration info you gave when you signed up. Your job on the day is
+to log in and pick a track.
 
-**This page covers signing up.** The step-by-step setup for each tool lives
-with that tool:
+**This page covers the login flow, and the self-service fallback if you're
+not on a pre-provisioned seat.** The step-by-step manual setup lives with each
+tool:
 
 | Tool | Full setup guide |
 |---|---|
@@ -30,7 +34,7 @@ and gets forked.
 
 | Placeholder | What it is |
 |---|---|
-| `{{DBT_WORKSHOP_URL}}` | dbt platform workshop signup URL |
+| `{{DBT_WORKSHOP_URL}}` | dbt platform workshop signup URL (self-service path only) |
 | `{{LAB_CREDENTIALS_URL}}` | The credentials card, holding everything below |
 | `{{PASSCODE}}` | Passcode for the credentials card |
 | `{{SNOWFLAKE_ACCOUNT}}` | Snowflake account identifier for the dbt connection |
@@ -39,35 +43,45 @@ and gets forked.
 
 ## 1. dbt platform
 
+### If you registered ahead of time (the default)
+
 | | |
 |---|---|
-| **How** | `{{DBT_WORKSHOP_URL}}`, or a standard trial at `getdbt.com` |
-| **What you get** | A developer seat with dbt Studio, dbt Wizard, job scheduling and dbt State. Enough for everything in this lab |
-| **Time to provision** | 3 to 5 minutes including email verification |
-| **You will need** | Your forked repo URL, and Snowflake connection details from the credentials card |
+| **How** | Log in at the URL on your credentials card, with the login tied to your registration |
+| **What you get** | A developer seat, already connected to Snowflake and to a project pointed at your track's subdirectory |
+| **Time to provision** | Under a minute; it's a login, not a signup |
+| **What to do** | Open dbt Studio and confirm you see your track's `models/`, `seeds/`, `tests/` and `dbt_project.yml` directly, not the whole repo with a `projects/` folder on top. If you see the whole repo, tell the facilitator; that's a provisioning mismatch, not yours to fix |
 
-**Full walkthrough: [../dbt/setup.md](../dbt/setup.md).** The summary:
+You should land on a project where `dbt seed` has either already been run, or
+runs clean the first time you try it. Either way, no connection fields to
+fill in.
 
-1. Create the account and verify your email.
-2. **Connect Snowflake.** Account identifier `{{SNOWFLAKE_ACCOUNT}}`, database
+**If you didn't register ahead of time**, or registration didn't capture your
+GitHub username, you're on the self-service path below.
+
+### Self-service (fallback): full walkthrough in [../dbt/setup.md](../dbt/setup.md)
+
+1. Fork the repo, if you haven't already.
+2. Create the dbt platform account and verify your email.
+3. **Connect Snowflake.** Account identifier `{{SNOWFLAKE_ACCOUNT}}`, database
    `HOL_SNOWFLAKE_INDUSTRY`, warehouse `HOL_DBT_WH`. Credentials are on the
    card.
-3. **Connect your fork.** Not the original repo, your fork, or you will not be
+4. **Connect your fork.** Not the original repo, your fork, or you will not be
    able to commit.
-4. **Set the project subdirectory** to your track: `projects/cpg`,
+5. **Set the project subdirectory** to your track: `projects/cpg`,
    `projects/energy` or `projects/financial_services`. This is the step people
    miss, and the symptom is dbt reporting that it cannot find
    `dbt_project.yml` (and, downstream of that, `dbt seed` finding nothing to
    load).
-5. **Create a production deployment environment.** You need it for the
+6. **Create a production deployment environment.** You need it for the
    production job and for dbt Catalog later. Two minutes now, or confusion at
    the Catalog section.
-6. **Run `dbt seed`.** Loads your track's raw data in seconds. No account,
+7. **Run `dbt seed`.** Loads your track's raw data in seconds. No account,
    no sync, nothing to wait on.
 
-**Fallback:** the instructor has a shared account with pre-created developer
-seats. Ask. There may also be a pre-configured workstation at the front of the
-room.
+**Fallback of the fallback:** the instructor has a shared account with
+pre-created developer seats. Ask. There may also be a pre-configured
+workstation at the front of the room.
 
 ---
 
@@ -92,6 +106,17 @@ the agents are already built there.
 
 ## Quick check before you start
 
+**If you're on a pre-provisioned seat:**
+
+| | Check | If not |
+|---|---|---|
+| [ ] | Logged in at the URL on your credentials card | Ask the facilitator, don't try to self-serve mid-lab |
+| [ ] | Picked a track | Consumer packaged goods if you are unsure |
+| [ ] | dbt Studio shows your track's folder directly, not the whole repo | Tell the facilitator, provisioning mismatch |
+| [ ] | Can sign in to Snowsight | Use the shared account |
+
+**If you're on the self-service path:**
+
 | | Check | If not |
 |---|---|---|
 | [ ] | Forked the repo to your own GitHub account | Fork it now. Do not clone the original |
@@ -101,8 +126,8 @@ the agents are already built there.
 | [ ] | `dbt seed` has run | If it found nothing, it's the project subdirectory, not your data |
 | [ ] | Can sign in to Snowsight | Use the shared account |
 
-The only one worth blocking on is the dbt platform connection. Everything else
-has a fallback that costs you nothing.
+On the self-service path, the only one worth blocking on is the dbt platform
+connection. Everything else has a fallback that costs you nothing.
 
 ---
 
