@@ -29,15 +29,15 @@ show tailors itself, with checkboxes that remember where you got to.
 
 ---
 
-## Start here: three steps, about a minute
+## Start here: two steps, about a minute
 
-### 1. Fork this repo
+**If you registered for this lab, you already have a login.** The one thing
+attendees used to do on the day (fork the repo, create a trial account,
+connect Snowflake, connect the fork, set a project subdirectory) is now
+pre-built by the facilitator before the room opens. Your setup is: log in,
+pick your industry.
 
-Click **Fork** at the top right of
-`github.com/hicham-bab/snowflake-openflow-dbt-hol`. Work in your fork, not in
-the original. You will connect the fork to dbt Studio in a few minutes.
-
-### 2. Pick your industry
+### 1. Pick your industry
 
 You only do one. Pick the one closest to your day job, or the one that sounds
 most interesting. All three take the same time.
@@ -52,44 +52,26 @@ New to dbt? Take **consumer packaged goods** or **energy**. Both finish
 comfortably. Financial services is the same length but the data works harder to
 trip you up.
 
-> ### Whichever track you pick, you must tell the dbt platform about it
->
-> This repo holds three separate dbt projects. The dbt platform does not know
-> which one is yours until you say so.
->
-> When you set up your dbt platform project, there is a field called
-> **Project subdirectory**. Type your track's folder path into it:
->
-> | If you picked | Type this into **Project subdirectory** |
-> |---|---|
-> | Consumer packaged goods | `projects/cpg` |
-> | Energy | `projects/energy` |
-> | Financial services | `projects/financial_services` |
->
-> Leave it blank and dbt looks in the repo root, finds no `dbt_project.yml`,
-> and nothing works. This is the single most common setup mistake in the lab.
->
-> Where to find it: **Account settings → Projects → your project → Edit**,
-> under the repository settings. You can change it later if you pick the wrong
-> one.
+### 2. Log in and confirm you're in the right place
 
-### 3. Set up your two tools
+Use the login on your lab credentials card, open dbt Studio, and check you see
+your track's folder structure directly (`models/`, `seeds/`, `tests/`,
+`dbt_project.yml`) rather than the whole repo with a `projects/` folder on
+top. If you see the whole repo, tell the facilitator, that's a
+pre-provisioning mismatch, not something to fix yourself.
 
-One folder per tool. dbt has no fallback; Snowflake usually doesn't need one
-either because the instructor supplies the account.
+**No login on your card, or running this solo?** You're on the self-service
+path instead: fork the repo, create your own accounts, and set the project
+subdirectory by hand. **[dbt/setup.md](dbt/setup.md)** and
+[docs/account-setup.md](docs/account-setup.md) cover it, 15-20 minutes.
 
-| Tool | Setup page | Time |
-|---|---|---|
-| **dbt platform** | **[dbt/setup.md](dbt/setup.md)** | **15 min, including loading your seed data. Cannot be skipped** |
-| Snowflake | [docs/account-setup.md](docs/account-setup.md) | Usually supplied by the instructor |
-
-There's no separate ingestion tool to set up. In production this pipeline
-would land raw data with **Openflow**; see
+There's no separate ingestion tool to set up either way. In production this
+pipeline would land raw data with **Openflow**; see
 [openflow/openflow-overview.md](openflow/openflow-overview.md) for why, and
 for why this lab loads the same raw data with a `dbt seed` instead of running
 a live ingestion tool in a two-hour room.
 
-### 4. Open your guide and go
+### 3. Open your guide and go
 
 | Track | Your guide |
 |---|---|
@@ -106,15 +88,17 @@ each one also tells you how to skip ahead without breaking anything.
 
 | | What | Minutes |
 |---|---|---|
-| 1 | Fork the repo, pick your industry, get your accounts | 8 |
-| 2 | Point dbt at your data, load your seed data, tour dbt Studio and Fusion | 26 |
+| 1 | Log in, pick your industry | 3 |
+| 2 | Load your seed data, tour dbt Studio and Fusion | 26 |
 | 3 | Build with dbt Wizard, and fix four deliberately broken things | 25 |
 | 4 | Define your metrics twice: Snowflake Semantic View and dbt Semantic Layer | 10 |
 | 5 | Ship it: a production job with docs, and dbt State | 8 |
 | 6 | Tour dbt Catalog: see exactly what metadata an AI agent will use | 8 |
 | 7 | Ask, and have CoWork act on, questions about your data in plain English | 25 |
 | 8 | Wrap up and open a pull request | 5 |
-| | Buffer | 5 |
+| | Buffer | 10 |
+
+See [docs/agenda.md](docs/agenda.md) for the full clock-time breakdown.
 
 Full run of show: [docs/agenda.md](docs/agenda.md).
 
@@ -122,13 +106,12 @@ Full run of show: [docs/agenda.md](docs/agenda.md).
 
 ## The one thing that will save you
 
-**If your fork breaks, re-fork.** Your seed data is checked into the repo, so
-your fork is self-contained: nothing about it depends on a live sync, a
-personal schema prefix, or an account that might not have arrived yet. If you
-get stuck in a way you can't unwind, forking `hicham-bab/snowflake-openflow-dbt-hol`
-again (or the instructor's fork, if they've fixed something) gets you back to
-a known-good state in under a minute. Nobody will know and the lab still
-teaches the same thing.
+**If your project breaks, ask the facilitator to reset it, or re-fork if
+you're on the self-service path.** Your seed data is checked into the repo,
+so any fork is self-contained: nothing about it depends on a live sync, a
+personal schema prefix, or an account that might not have arrived yet. Getting
+back to a known-good state takes under a minute either way. Nobody will know
+and the lab still teaches the same thing.
 
 ---
 

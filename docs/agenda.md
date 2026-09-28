@@ -8,9 +8,17 @@ at a glance whether they are ahead or behind.
 
 ## The schedule
 
+**If attendees are pre-provisioned (the default, see
+[facilitator-guide.md](facilitator-guide.md)), section 1 drops from 8 minutes
+to about 3: there's no fork or account to create, just a login and a track
+pick.** The 5 minutes that frees goes to the buffer at the end (10 minutes
+instead of 5), not to any other section. The clock marks below assume the
+old 8-minute self-service version; shift everything after 0:03 back by 5
+minutes if you're running the pre-provisioned default.
+
 | Clock | Section | Min | Who is doing what |
 |---|---|---|---|
-| 0:00 | Welcome, fork the repo, pick your industry | 8 | Instructor leads, attendees fork and choose |
+| 0:00 | Welcome, log in (or fork, self-service), pick your industry | 8 | Instructor leads, attendees log in or fork, then choose |
 | 0:08 | dbt platform setup, load your industry's seed data, sources and staging, **first green build** | 18 | Hands-on. `dbt/setup.md` then guide section 3 |
 | 0:26 | dbt Studio and Fusion tour on the data-quality view | 8 | Instructor demos, attendees follow along |
 | 0:34 | **dbt Wizard: fix four broken things, then build one from intent** | 25 | Hands-on. The centre of the lab |
@@ -77,14 +85,20 @@ what makes the AI section land as engineering rather than as a magic trick.
 
 ## What each section has to land
 
-### 0:00 Welcome, fork, pick (8 min)
+### 0:00 Welcome, log in, pick (8 min self-service, about 3 pre-provisioned)
 
-Get three things done: everyone has forked the repo, everyone has chosen a
-track, and everyone knows what to do if their fork breaks.
+**Pre-provisioned (default):** confirm everyone can log in and see their
+track's folder in dbt Studio, and everyone has chosen a track. That's it,
+there's no fork or account step to walk through live.
+
+**Self-service (fallback):** get three things done instead: everyone has
+forked the repo, everyone has chosen a track, and everyone knows what to do
+if their fork breaks.
 
 Say it out loud now, not at 1:00 when someone is stuck: *"if you break
-something you can't undo, re-fork. Your seed data ships in the repo, so a
-fresh fork is a fresh start, no account or sync to wait on."*
+something you can't undo, ask for a reset, or re-fork if you're self-service.
+Your seed data ships in the repo, so a fresh start costs no account or sync
+wait."*
 
 Steer nervous attendees to consumer packaged goods or energy, confident ones to
 financial services. Nobody is scoring this.

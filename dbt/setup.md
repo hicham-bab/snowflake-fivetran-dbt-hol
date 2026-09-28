@@ -1,14 +1,43 @@
 # dbt platform setup
 
-**Time: 15 minutes, including loading your seed data.**
+**Pre-provisioned seat: under 2 minutes, just a confirm. Self-service: 15
+minutes, including loading your seed data.**
 
-This is the one setup page you cannot skip. Snowflake has a fallback (use
-the shared account); this page doesn't, because if the dbt platform isn't
-connected there is no lab.
+Check which path you're on before you read further; most attendees at a
+registered workshop are pre-provisioned now, and everything below "Step 1"
+is the self-service path, not the default.
 
 ---
 
-## What you are building
+## Pre-provisioned? Start here
+
+If you were given a login on your credentials card, your account, Snowflake
+connection, project, subdirectory, and environments already exist. Confirm,
+don't build:
+
+1. Log in and open dbt Studio.
+2. You should see your track's folder directly: `models/`, `seeds/`,
+   `tests/`, `dbt_project.yml`. If you see the whole repo with a `projects/`
+   folder on top instead, your project's subdirectory is wrong; tell the
+   facilitator, this is theirs to fix, not yours.
+3. Run:
+
+   ```bash
+   dbt seed
+   ```
+
+   If your seed data was pre-loaded, this is a no-op or runs clean instantly.
+   If it wasn't, it loads in seconds. Either way you shouldn't see "No seeds
+   found"; if you do, it's the same subdirectory problem, tell the
+   facilitator.
+4. Go back to your track's guide and continue from section 2.2.
+
+That's it. Skip everything below; it's the manual version of what was just
+done for you.
+
+---
+
+## Self-service: what you are building
 
 | | |
 |---|---|
